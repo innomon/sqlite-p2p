@@ -6,9 +6,9 @@
     - [x] Write Tests: Test directory layout verification and build target validation
     - [x] Implement: Initialize `go.mod`, setup package folders (`cmd/crm-peer`, `internal/config`, `internal/logger`, `internal/store`, `internal/cli`)
 
-- [ ] Task: Implement 3-tier hierarchical YAML configuration loader
-    - [ ] Write Tests: Unit tests for CLI flag override, binary directory lookup, cwd fallback, and default values
-    - [ ] Implement: Configuration structs and loader in `internal/config/config.go` with YAML parsing
+- [x] Task: Implement 3-tier hierarchical YAML configuration loader (5ae663e)
+    - [x] Write Tests: Unit tests for CLI flag override, binary directory lookup, cwd fallback, and default values
+    - [x] Implement: Configuration structs and loader in `internal/config/config.go` with YAML parsing
 
 - [ ] Task: Implement zero-dependency structured JSON logger
     - [ ] Write Tests: Unit tests verifying RFC3339Nano timestamps, standard field structure, log levels, and error serialization
