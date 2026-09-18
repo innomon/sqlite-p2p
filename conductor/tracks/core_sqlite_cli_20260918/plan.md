@@ -10,9 +10,9 @@
     - [x] Write Tests: Unit tests for CLI flag override, binary directory lookup, cwd fallback, and default values
     - [x] Implement: Configuration structs and loader in `internal/config/config.go` with YAML parsing
 
-- [ ] Task: Implement zero-dependency structured JSON logger
-    - [ ] Write Tests: Unit tests verifying RFC3339Nano timestamps, standard field structure, log levels, and error serialization
-    - [ ] Implement: Logger package in `internal/logger/logger.go` adhering to `structured_logging_pattern.md`
+- [x] Task: Implement zero-dependency structured JSON logger (ae1e27c)
+    - [x] Write Tests: Unit tests verifying RFC3339Nano timestamps, standard field structure, log levels, and error serialization
+    - [x] Implement: Logger package in `internal/logger/logger.go` adhering to `structured_logging_pattern.md`
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Foundation, Configuration & Structured Logging' (Protocol in workflow.md)
 
