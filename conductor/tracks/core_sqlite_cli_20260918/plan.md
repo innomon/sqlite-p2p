@@ -2,9 +2,9 @@
 
 ## Phase 1: Foundation, Configuration & Structured Logging
 
-- [ ] Task: Initialize pure Go module and project directory structure
-    - [ ] Write Tests: Test directory layout verification and build target validation
-    - [ ] Implement: Initialize `go.mod`, setup package folders (`cmd/crm-peer`, `internal/config`, `internal/logger`, `internal/store`, `internal/cli`)
+- [x] Task: Initialize pure Go module and project directory structure (79ef80b)
+    - [x] Write Tests: Test directory layout verification and build target validation
+    - [x] Implement: Initialize `go.mod`, setup package folders (`cmd/crm-peer`, `internal/config`, `internal/logger`, `internal/store`, `internal/cli`)
 
 - [ ] Task: Implement 3-tier hierarchical YAML configuration loader
     - [ ] Write Tests: Unit tests for CLI flag override, binary directory lookup, cwd fallback, and default values
