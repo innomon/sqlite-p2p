@@ -34,9 +34,9 @@
 
 ## Phase 3: Pure Go SQLite Engine & `crm_store` Single-Table Storage
 
-- [ ] Task: Implement deterministic customer key generator
-    - [ ] Write Tests: Unit tests for phone number sanitization, SHA-256 hashing, Base32 encoding, and URI formatting
-    - [ ] Implement: Key generator in `internal/store/key.go` returning `in.qzip.crm.customer:<BASE32(SHA256(phone))>`
+- [x] Task: Implement deterministic customer key generator (7cb41d3)
+    - [x] Write Tests: Unit tests for phone number sanitization, SHA-256 hashing, Base32 encoding, and URI formatting
+    - [x] Implement: Key generator in `internal/store/key.go` returning `in.qzip.crm.customer:<BASE32(SHA256(phone))>`
 
 - [ ] Task: Implement Pure Go SQLite database initialization with WAL pragmas
     - [ ] Write Tests: Unit tests verifying database opening, WAL pragma enforcement, and `crm_store` WITHOUT ROWID table creation
