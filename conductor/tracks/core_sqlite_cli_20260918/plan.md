@@ -38,9 +38,9 @@
     - [x] Write Tests: Unit tests for phone number sanitization, SHA-256 hashing, Base32 encoding, and URI formatting
     - [x] Implement: Key generator in `internal/store/key.go` returning `in.qzip.crm.customer:<BASE32(SHA256(phone))>`
 
-- [ ] Task: Implement Pure Go SQLite database initialization with WAL pragmas
-    - [ ] Write Tests: Unit tests verifying database opening, WAL pragma enforcement, and `crm_store` WITHOUT ROWID table creation
-    - [ ] Implement: DB manager in `internal/store/db.go` using pure Go SQLite driver (`modernc.org/sqlite`)
+- [x] Task: Implement Pure Go SQLite database initialization with WAL pragmas (c60a296)
+    - [x] Write Tests: Unit tests verifying database opening, WAL pragma enforcement, and `crm_store` WITHOUT ROWID table creation
+    - [x] Implement: DB manager in `internal/store/db.go` using pure Go SQLite driver (`modernc.org/sqlite`)
 
 - [ ] Task: Implement CRUD operations with JSON metadata validation
     - [ ] Write Tests: Unit tests for record insert, upsert, query by key, and invalid JSON metadata rejection
