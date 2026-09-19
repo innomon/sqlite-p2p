@@ -20,9 +20,9 @@
 
 ## Phase 2: Handcrafted CLI Command Registry
 
-- [ ] Task: Implement handcrafted command and subcommand router
-    - [ ] Write Tests: Unit tests verifying command registration, path resolution, subcommand dispatch, and error handling
-    - [ ] Implement: Command registry in `internal/cli/registry.go` without third-party CLI dependencies
+- [x] Task: Implement handcrafted command and subcommand router (064e2d1)
+    - [x] Write Tests: Unit tests verifying command registration, path resolution, subcommand dispatch, and error handling
+    - [x] Implement: Command registry in `internal/cli/registry.go` without third-party CLI dependencies
 
 - [ ] Task: Wire CLI application entry point and baseline subcommands
     - [ ] Write Tests: Unit tests for `help`, `status`, and version flag execution
