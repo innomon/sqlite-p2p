@@ -18,7 +18,7 @@
 
 ---
 
-## Phase 2: Handcrafted CLI Command Registry
+## Phase 2: Handcrafted CLI Command Registry [checkpoint: 7b48377]
 
 - [x] Task: Implement handcrafted command and subcommand router (064e2d1)
     - [x] Write Tests: Unit tests verifying command registration, path resolution, subcommand dispatch, and error handling
@@ -28,7 +28,7 @@
     - [x] Write Tests: Unit tests for `help`, `status`, and version flag execution
     - [x] Implement: Main entry point in `cmd/crm-peer/main.go` and core handlers in `internal/cli/commands.go`
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Handcrafted CLI Command Registry' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Handcrafted CLI Command Registry' (Protocol in workflow.md) (7b48377)
 
 ---
 
