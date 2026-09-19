@@ -24,9 +24,9 @@
     - [x] Write Tests: Unit tests verifying command registration, path resolution, subcommand dispatch, and error handling
     - [x] Implement: Command registry in `internal/cli/registry.go` without third-party CLI dependencies
 
-- [ ] Task: Wire CLI application entry point and baseline subcommands
-    - [ ] Write Tests: Unit tests for `help`, `status`, and version flag execution
-    - [ ] Implement: Main entry point in `cmd/crm-peer/main.go` and core handlers in `internal/cli/commands.go`
+- [x] Task: Wire CLI application entry point and baseline subcommands (ed9ee4e)
+    - [x] Write Tests: Unit tests for `help`, `status`, and version flag execution
+    - [x] Implement: Main entry point in `cmd/crm-peer/main.go` and core handlers in `internal/cli/commands.go`
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Handcrafted CLI Command Registry' (Protocol in workflow.md)
 
