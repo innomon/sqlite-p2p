@@ -32,7 +32,7 @@
 
 ---
 
-## Phase 3: Pure Go SQLite Engine & `crm_store` Single-Table Storage
+## Phase 3: Pure Go SQLite Engine & `crm_store` Single-Table Storage [checkpoint: 1088015]
 
 - [x] Task: Implement deterministic customer key generator (7cb41d3)
     - [x] Write Tests: Unit tests for phone number sanitization, SHA-256 hashing, Base32 encoding, and URI formatting
@@ -46,7 +46,7 @@
     - [x] Write Tests: Unit tests for record insert, upsert, query by key, and invalid JSON metadata rejection
     - [x] Implement: Storage repository methods in `internal/store/repository.go`
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Pure Go SQLite Engine & crm_store Single-Table Storage' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Pure Go SQLite Engine & crm_store Single-Table Storage' (Protocol in workflow.md) (1088015)
 
 ---
 
