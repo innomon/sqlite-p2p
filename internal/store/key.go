@@ -37,7 +37,7 @@ func NormalizePhoneNumber(phone string) (string, error) {
 	}
 
 	if len(d) < 7 {
-		return "", fmt.Errorf("phone number too short: %s", phone)
+		return "", fmt.Errorf("phone number too short after normalization (length %d)", len(d))
 	}
 
 	return d, nil
