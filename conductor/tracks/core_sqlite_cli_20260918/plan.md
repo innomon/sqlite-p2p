@@ -42,9 +42,9 @@
     - [x] Write Tests: Unit tests verifying database opening, WAL pragma enforcement, and `crm_store` WITHOUT ROWID table creation
     - [x] Implement: DB manager in `internal/store/db.go` using pure Go SQLite driver (`modernc.org/sqlite`)
 
-- [ ] Task: Implement CRUD operations with JSON metadata validation
-    - [ ] Write Tests: Unit tests for record insert, upsert, query by key, and invalid JSON metadata rejection
-    - [ ] Implement: Storage repository methods in `internal/store/repository.go`
+- [x] Task: Implement CRUD operations with JSON metadata validation (b80fd9b)
+    - [x] Write Tests: Unit tests for record insert, upsert, query by key, and invalid JSON metadata rejection
+    - [x] Implement: Storage repository methods in `internal/store/repository.go`
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Pure Go SQLite Engine & crm_store Single-Table Storage' (Protocol in workflow.md)
 
