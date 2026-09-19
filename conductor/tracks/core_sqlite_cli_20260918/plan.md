@@ -50,7 +50,7 @@
 
 ---
 
-## Phase 4: SQLite Session Changeset Capture Foundation
+## Phase 4: SQLite Session Changeset Capture Foundation [checkpoint: 28ac711]
 
 - [x] Task: Implement changeset capture abstraction and hooks (43b4ef3)
     - [x] Write Tests: Unit tests verifying mutation session tracking and changeset diff binary generation on `crm_store`
@@ -60,4 +60,4 @@
     - [x] Write Tests: Integration tests verifying customer record creation emits a valid binary changeset
     - [x] Implement: CLI `customer put` and `customer get` handlers utilizing the store and changeset capture
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: SQLite Session Changeset Capture Foundation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: SQLite Session Changeset Capture Foundation' (Protocol in workflow.md) (28ac711)
