@@ -61,3 +61,9 @@
     - [x] Implement: CLI `customer put` and `customer get` handlers utilizing the store and changeset capture
 
 - [x] Task: Conductor - User Manual Verification 'Phase 4: SQLite Session Changeset Capture Foundation' (Protocol in workflow.md) (28ac711)
+
+---
+
+## Phase: Review Fixes
+
+- [x] Task: Apply review suggestions (9adf132)
