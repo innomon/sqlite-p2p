@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Core SQLite crm_store Engine, Changeset Capture & CLI Foundation**
+- [x] **Track: Core SQLite crm_store Engine, Changeset Capture & CLI Foundation**
   *Link: [./tracks/core_sqlite_cli_20260918/](./tracks/core_sqlite_cli_20260918/)*
