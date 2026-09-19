@@ -2,13 +2,21 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"crm-sqlite-pear-p2p/internal/config"
+	"crm-sqlite-pear-p2p/internal/store"
 )
 
 // BuildRootCommand constructs the top-level CLI command tree with core subcommands.
 func BuildRootCommand(version string, cfg config.Config) *Command {
+	return BuildRootCommandWithTracker(version, cfg, nil)
+}
+
+// BuildRootCommandWithTracker constructs the top-level CLI command tree with tracker injection.
+func BuildRootCommandWithTracker(version string, cfg config.Config, tracker *store.ChangesetTracker) *Command {
 	root := NewCommand("crm-peer", "Distributed Multimodal Agentic CRM (Pure Go Pear/P2P)")
 
 	root.Run = func(ctx context.Context, args []string) error {
@@ -50,6 +58,118 @@ func BuildRootCommand(version string, cfg config.Config) *Command {
 	)
 	root.AddSubcommand(statusCmd)
 
+	// customer commands
+	customerCmd := NewCommand("customer", "Manage customer records and changesets")
+
+	customerCmd.AddSubcommand(cliSubcommand(
+		"put",
+		"Insert or update a customer record: customer put <phone> <metadata_json> [payload]",
+		"crm-peer customer put <phone> <metadata_json> [payload]",
+		func(ctx context.Context, args []string) error {
+			if len(args) < 2 {
+				return fmt.Errorf("usage: crm-peer customer put <phone> <metadata_json> [payload]")
+			}
+			t := tracker
+			if t == nil {
+				db, err := store.OpenDB(cfg.DBPath, cfg.EnableWAL)
+				if err != nil {
+					return err
+				}
+				defer db.Close()
+				t = store.NewChangesetTracker(store.NewRepository(db))
+			}
+
+			key, err := store.FormatCustomerKey(args[0])
+			if err != nil {
+				return err
+			}
+
+			meta := json.RawMessage(args[1])
+			var data []byte
+			if len(args) > 2 {
+				data = []byte(args[2])
+			}
+
+			if err := t.Put(ctx, key, meta, data); err != nil {
+				return err
+			}
+
+			fmt.Fprintf(root.Stdout, "Saved customer record:\n  Key: %s\n", key)
+			return nil
+		},
+	))
+
+	customerCmd.AddSubcommand(cliSubcommand(
+		"get",
+		"Retrieve a customer record: customer get <phone_or_key>",
+		"crm-peer customer get <phone_or_key>",
+		func(ctx context.Context, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("usage: crm-peer customer get <phone_or_key>")
+			}
+
+			target := args[0]
+			key := target
+			if !strings.HasPrefix(target, store.CustomerNamespace+":") {
+				var err error
+				key, err = store.FormatCustomerKey(target)
+				if err != nil {
+					return err
+				}
+			}
+
+			db, err := store.OpenDB(cfg.DBPath, cfg.EnableWAL)
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			repo := store.NewRepository(db)
+
+			rec, err := repo.Get(ctx, key)
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprintf(root.Stdout, "Key:      %s\n", rec.Key)
+			fmt.Fprintf(root.Stdout, "Metadata: %s\n", string(rec.Metadata))
+			if len(rec.Data) > 0 {
+				fmt.Fprintf(root.Stdout, "Data:     %s\n", string(rec.Data))
+			}
+			return nil
+		},
+	))
+
+	customerCmd.AddSubcommand(cliSubcommand(
+		"list",
+		"List customer records: customer list [limit] [offset]",
+		"crm-peer customer list [limit] [offset]",
+		func(ctx context.Context, args []string) error {
+			db, err := store.OpenDB(cfg.DBPath, cfg.EnableWAL)
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			repo := store.NewRepository(db)
+
+			count, err := repo.Count(ctx, store.CustomerNamespace)
+			if err != nil {
+				return err
+			}
+
+			records, err := repo.List(ctx, store.CustomerNamespace, 50, 0)
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprintf(root.Stdout, "Total Customers: %d\n", count)
+			for _, r := range records {
+				fmt.Fprintf(root.Stdout, "  - %s\n", r.Key)
+			}
+			return nil
+		},
+	))
+
+	root.AddSubcommand(customerCmd)
 	return root
 }
 
