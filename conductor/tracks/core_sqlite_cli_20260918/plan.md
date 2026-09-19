@@ -52,9 +52,9 @@
 
 ## Phase 4: SQLite Session Changeset Capture Foundation
 
-- [ ] Task: Implement changeset capture abstraction and hooks
-    - [ ] Write Tests: Unit tests verifying mutation session tracking and changeset diff binary generation on `crm_store`
-    - [ ] Implement: Changeset capture engine in `internal/store/changeset.go`
+- [x] Task: Implement changeset capture abstraction and hooks (43b4ef3)
+    - [x] Write Tests: Unit tests verifying mutation session tracking and changeset diff binary generation on `crm_store`
+    - [x] Implement: Changeset capture engine in `internal/store/changeset.go`
 
 - [ ] Task: Integrate changeset generation into CLI customer commands
     - [ ] Write Tests: Integration tests verifying customer record creation emits a valid binary changeset
