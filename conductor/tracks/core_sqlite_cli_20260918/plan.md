@@ -56,8 +56,8 @@
     - [x] Write Tests: Unit tests verifying mutation session tracking and changeset diff binary generation on `crm_store`
     - [x] Implement: Changeset capture engine in `internal/store/changeset.go`
 
-- [ ] Task: Integrate changeset generation into CLI customer commands
-    - [ ] Write Tests: Integration tests verifying customer record creation emits a valid binary changeset
-    - [ ] Implement: CLI `customer put` and `customer get` handlers utilizing the store and changeset capture
+- [x] Task: Integrate changeset generation into CLI customer commands (39594cd)
+    - [x] Write Tests: Integration tests verifying customer record creation emits a valid binary changeset
+    - [x] Implement: CLI `customer put` and `customer get` handlers utilizing the store and changeset capture
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: SQLite Session Changeset Capture Foundation' (Protocol in workflow.md)
