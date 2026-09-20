@@ -61,4 +61,9 @@ func TestAutobaseLinearization(t *testing.T) {
 	if len(linearized) < 1 {
 		t.Fatalf("expected at least 1 linearized changeset, got %d", len(linearized))
 	}
+
+	if ab.WriterCount() != 2 {
+		t.Fatalf("expected 2 writers, got %d", ab.WriterCount())
+	}
 }
+

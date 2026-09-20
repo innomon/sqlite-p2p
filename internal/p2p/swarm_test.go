@@ -3,12 +3,15 @@ package p2p_test
 import (
 	"bytes"
 	"context"
+	"net"
 	"strings"
 	"testing"
 	"time"
 
 	"crm-sqlite-pear-p2p/internal/logger"
 	"crm-sqlite-pear-p2p/internal/p2p"
+
+	"go-pear/pkg/hyperswarm"
 )
 
 func TestSwarmManagerLifecycle(t *testing.T) {
@@ -129,3 +132,16 @@ func TestSwarmManagerDHTTopicDiscovery(t *testing.T) {
 		t.Fatalf("expected peer count > 0")
 	}
 }
+
+func TestSwarmManagerRawConnection(t *testing.T) {
+	sm, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{Port: 0})
+	if err != nil {
+		t.Fatalf("NewSwarmManager: %v", err)
+	}
+	defer sm.Close()
+
+	sm.OnRawConnection(func(conn net.Conn, peer *hyperswarm.PeerConnection) {
+		// Handler registered
+	})
+}
+
