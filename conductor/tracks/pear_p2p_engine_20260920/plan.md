@@ -34,9 +34,9 @@
 ---
 
 ## Phase 4: CLI Integration & Multi-Node Verification
-- [ ] Task: Implement CLI commands `start`, `peer`, and `sync`
-    - [ ] Write Tests: CLI integration tests for `crm-peer start` daemon lifecycle, `peer status`, `peer list`, and `sync`
-    - [ ] Implement: CLI subcommand handlers in `internal/cli/commands.go` connected to ReplicationEngine
+- [x] Task: Implement CLI commands `start`, `peer`, and `sync` (4348d3b)
+    - [x] Write Tests: CLI integration tests for `crm-peer start` daemon lifecycle, `peer status`, `peer list`, and `sync`
+    - [x] Implement: CLI subcommand handlers in `internal/cli/commands.go` connected to ReplicationEngine
 - [ ] Task: Multi-node dual-write end-to-end integration test
     - [ ] Write Tests: End-to-end test spinning up two peer instances on isolated storage dirs, verifying bi-directional customer sync and state convergence
     - [ ] Implement: End-to-end verification test suite in `tests/p2p_sync_test.go`
