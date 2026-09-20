@@ -1,9 +1,9 @@
 # Implementation Plan: Pure Go Pear P2P Swarm & Replication Engine
 
 ## Phase 1: Pure Go Pear Stack Integration & Topic Derivation
-- [ ] Task: Integrate `go-pear` dependency into `go.mod`
-    - [ ] Write Tests: Verify module import and instantiation of core go-pear primitives (Hypercore, Swarm topic hash)
-    - [ ] Implement: Add `replace go-pear => ../go-pear` and required dependencies in `go.mod`, implement topic derivation helper in `internal/p2p/topic.go`
+- [x] Task: Integrate `go-pear` dependency into `go.mod` (2c364c5)
+    - [x] Write Tests: Verify module import and instantiation of core go-pear primitives (Hypercore, Swarm topic hash)
+    - [x] Implement: Add `replace go-pear => ../go-pear` and required dependencies in `go.mod`, implement topic derivation helper in `internal/p2p/topic.go`
 - [ ] Task: Implement Hypercore append-only log adapter for changesets
     - [ ] Write Tests: Unit tests for writing serialized Changeset entries to Hypercore and decoding stream chunks
     - [ ] Implement: `internal/p2p/feed.go` wrapping Hypercore storage for append and replay operations
