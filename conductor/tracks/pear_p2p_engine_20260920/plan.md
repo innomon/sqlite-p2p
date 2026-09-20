@@ -33,11 +33,11 @@
 
 ---
 
-## Phase 4: CLI Integration & Multi-Node Verification
+## Phase 4: CLI Integration & Multi-Node Verification [checkpoint: 404d67e]
 - [x] Task: Implement CLI commands `start`, `peer`, and `sync` (4348d3b)
     - [x] Write Tests: CLI integration tests for `crm-peer start` daemon lifecycle, `peer status`, `peer list`, and `sync`
     - [x] Implement: CLI subcommand handlers in `internal/cli/commands.go` connected to ReplicationEngine
 - [x] Task: Multi-node dual-write end-to-end integration test (7811f5d)
     - [x] Write Tests: End-to-end test spinning up two peer instances on isolated storage dirs, verifying bi-directional customer sync and state convergence
     - [x] Implement: End-to-end verification test suite in `tests/p2p_sync_test.go`
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: CLI Integration & Multi-Node Verification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: CLI Integration & Multi-Node Verification' (Protocol in workflow.md) (404d67e)
