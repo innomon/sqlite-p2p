@@ -216,3 +216,38 @@ func TestEngineStructuredLogging(t *testing.T) {
 	}
 }
 
+func TestEngineSyncPeers(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	db, err := store.OpenDB(":memory:", true)
+	if err != nil {
+		t.Fatalf("OpenDB: %v", err)
+	}
+	defer db.Close()
+
+	repo := store.NewRepository(db)
+	feed, err := p2p.NewChangesetFeed(filepath.Join(tempDir, "sync_feed"))
+	if err != nil {
+		t.Fatalf("NewChangesetFeed: %v", err)
+	}
+
+	rep := p2p.NewReplicator(feed, nil)
+	defer rep.Close()
+
+	engine := p2p.NewReplicationEngine(repo, feed, rep)
+
+	// Append two changesets locally
+	_ = engine.PutLocal(ctx, "in.qzip.crm.customer:SYNC1", json.RawMessage(`{"v":1}`), []byte("data1"))
+	_ = engine.PutLocal(ctx, "in.qzip.crm.customer:SYNC2", json.RawMessage(`{"v":2}`), []byte("data2"))
+
+	count, err := engine.SyncPeers(ctx)
+	if err != nil {
+		t.Fatalf("SyncPeers error: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("expected 2 broadcast changesets, got %d", count)
+	}
+}
+
+

@@ -231,16 +231,20 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 		"Trigger immediate peer reconciliation sweep",
 		"crm-peer sync",
 		func(ctx context.Context, args []string) error {
-			if engine != nil && engine.Feed() != nil {
-				_ = engine.Feed().Replay(0, func(cs *store.Changeset) error {
-					return nil
-				})
+			count := 0
+			if engine != nil {
+				var err error
+				count, err = engine.SyncPeers(ctx)
+				if err != nil {
+					return fmt.Errorf("sync failed: %w", err)
+				}
 			}
-			fmt.Fprintf(root.Stdout, "Sync complete: local and peer state reconciled\n")
+			fmt.Fprintf(root.Stdout, "Sync complete: %d changesets broadcast to connected peers\n", count)
 			return nil
 		},
 	)
 	root.AddSubcommand(syncCmd)
+
 
 	// start command
 	startCmd := cliSubcommand(

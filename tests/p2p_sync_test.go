@@ -3,6 +3,7 @@ package tests_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"path/filepath"
 	"testing"
@@ -162,3 +163,104 @@ func TestMultiNodeDualWriteConvergence(t *testing.T) {
 		t.Fatalf("LWW state divergence: Node 1 has %s, Node 2 has %s", finalOn1.Data, finalOn2.Data)
 	}
 }
+
+func TestLaggedPeerSyncReconciliation(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	baseDir := t.TempDir()
+
+	// --- Node 1 Setup ---
+	node1Dir := filepath.Join(baseDir, "node1")
+	db1, err := store.OpenDB(filepath.Join(node1Dir, "crm.db"), true)
+	if err != nil {
+		t.Fatalf("db1 open error: %v", err)
+	}
+	defer db1.Close()
+	repo1 := store.NewRepository(db1)
+
+	feed1, err := p2p.NewChangesetFeed(filepath.Join(node1Dir, "feed"))
+	if err != nil {
+		t.Fatalf("feed1 init error: %v", err)
+	}
+
+	var engine1 *p2p.ReplicationEngine
+	rep1 := p2p.NewReplicator(feed1, func(cs *store.Changeset) error {
+		return engine1.ApplyRemoteChangeset(context.Background(), cs)
+	})
+	defer rep1.Close()
+	engine1 = p2p.NewReplicationEngine(repo1, feed1, rep1)
+
+	// --- Node 2 Setup (initially disconnected / lagged) ---
+	node2Dir := filepath.Join(baseDir, "node2")
+	db2, err := store.OpenDB(filepath.Join(node2Dir, "crm.db"), true)
+	if err != nil {
+		t.Fatalf("db2 open error: %v", err)
+	}
+	defer db2.Close()
+	repo2 := store.NewRepository(db2)
+
+	feed2, err := p2p.NewChangesetFeed(filepath.Join(node2Dir, "feed"))
+	if err != nil {
+		t.Fatalf("feed2 init error: %v", err)
+	}
+
+	var engine2 *p2p.ReplicationEngine
+	rep2 := p2p.NewReplicator(feed2, func(cs *store.Changeset) error {
+		return engine2.ApplyRemoteChangeset(context.Background(), cs)
+	})
+	defer rep2.Close()
+	engine2 = p2p.NewReplicationEngine(repo2, feed2, rep2)
+
+	// Node 1 writes 3 customer records while Node 2 is offline
+	for i := 1; i <= 3; i++ {
+		key, _ := store.FormatCustomerKey(fmt.Sprintf("+91-900000000%d", i))
+		err := engine1.PutLocal(ctx, key, json.RawMessage(`{"status":"offline-written"}`), []byte(fmt.Sprintf("offline-data-%d", i)))
+		if err != nil {
+			t.Fatalf("PutLocal %d: %v", i, err)
+		}
+	}
+
+	// Verify Node 2 does not have the records yet
+	key1, _ := store.FormatCustomerKey("+91-9000000001")
+	_, err = repo2.Get(ctx, key1)
+	if err != store.ErrNotFound {
+		t.Fatalf("expected ErrNotFound on lagged node before connection, got: %v", err)
+	}
+
+	// Connect Node 1 & Node 2
+	conn1, conn2 := net.Pipe()
+	defer conn1.Close()
+	defer conn2.Close()
+
+	rep1.AddPeer(conn1)
+	rep2.AddPeer(conn2)
+	go rep1.HandleConnection(conn1)
+	go rep2.HandleConnection(conn2)
+
+	// Trigger sync from Node 1 to catch up Node 2
+	count, err := engine1.SyncPeers(ctx)
+	if err != nil {
+		t.Fatalf("SyncPeers error: %v", err)
+	}
+	if count != 3 {
+		t.Fatalf("expected 3 broadcast changesets, got %d", count)
+	}
+
+	// Allow propagation
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify Node 2 received and applied all 3 records
+	for i := 1; i <= 3; i++ {
+		key, _ := store.FormatCustomerKey(fmt.Sprintf("+91-900000000%d", i))
+		rec, err := repo2.Get(ctx, key)
+		if err != nil {
+			t.Fatalf("Node 2 missing synced record %d: %v", i, err)
+		}
+		expected := fmt.Sprintf("offline-data-%d", i)
+		if string(rec.Data) != expected {
+			t.Errorf("Node 2 record %d mismatch: got %s, want %s", i, string(rec.Data), expected)
+		}
+	}
+}
+

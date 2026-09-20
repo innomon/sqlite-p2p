@@ -200,3 +200,48 @@ func (e *ReplicationEngine) Feed() *ChangesetFeed {
 func (e *ReplicationEngine) Autobase() *AutobaseManager {
 	return e.autobase
 }
+
+// SyncPeers replays the entire local feed from sequence 0 and broadcasts each changeset
+// to all active peer connections. Returns the count of changesets broadcasted.
+func (e *ReplicationEngine) SyncPeers(ctx context.Context) (int, error) {
+	if e.feed == nil || e.replicator == nil {
+		return 0, nil
+	}
+
+	count := 0
+	err := e.feed.Replay(0, func(cs *store.Changeset) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		if err := e.replicator.BroadcastChangeset(cs); err != nil {
+			return err
+		}
+		count++
+		return nil
+	})
+
+	if err != nil {
+		if e.logger != nil {
+			e.logger.Error("peer sync failed during feed replay broadcast",
+				"event", "sync_peers_failed",
+				"error", err,
+				"broadcast_count", count,
+			)
+		}
+		return count, err
+	}
+
+	if e.logger != nil {
+		e.logger.Info("peer sync sweep completed",
+			"event", "sync_peers_completed",
+			"broadcast_count", count,
+			"peer_count", e.replicator.PeerCount(),
+		)
+	}
+
+	return count, nil
+}
+
