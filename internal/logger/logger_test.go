@@ -98,3 +98,34 @@ func TestLogRotatorLifecycle(t *testing.T) {
 		t.Errorf("rotator Close error: %v", err)
 	}
 }
+
+func TestInitFunction(t *testing.T) {
+	tempDir := t.TempDir()
+	l, err := logger.Init(logger.Config{
+		Level:       "DEBUG",
+		FileEnabled: true,
+		Dir:         tempDir,
+		FileName:    "app.log",
+		MaxSizeMB:   1,
+		MaxBackups:  2,
+	})
+	if err != nil {
+		t.Fatalf("Init with file failed: %v", err)
+	}
+	if l == nil {
+		t.Fatalf("expected non-nil logger")
+	}
+
+	// Init with console/discard only
+	l2, err := logger.Init(logger.Config{
+		Level:       "INFO",
+		FileEnabled: false,
+	})
+	if err != nil {
+		t.Fatalf("Init without file failed: %v", err)
+	}
+	if l2 == nil {
+		t.Fatalf("expected non-nil logger")
+	}
+}
+

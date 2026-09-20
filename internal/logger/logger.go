@@ -40,3 +40,40 @@ func NewJSONLogger(out io.Writer, levelStr string) *slog.Logger {
 
 	return slog.New(handler).With("service", DefaultService)
 }
+
+// Config holds configuration parameters for the application logger.
+type Config struct {
+	Level          string
+	ConsoleEnabled bool
+	FileEnabled    bool
+	Dir            string
+	FileName       string
+	MaxSizeMB      int
+	MaxBackups     int
+}
+
+// Init configures and returns an application *slog.Logger according to cfg.
+func Init(cfg Config) (*slog.Logger, error) {
+	var out io.Writer
+	if cfg.FileEnabled {
+		dir := cfg.Dir
+		if dir == "" {
+			dir = "."
+		}
+		filename := cfg.FileName
+		if filename == "" {
+			filename = "crm-peer.jsonl"
+		}
+		rotator, err := NewLogRotator(dir, filename, cfg.MaxSizeMB, cfg.MaxBackups)
+		if err != nil {
+			return nil, err
+		}
+		out = rotator
+	} else {
+		out = io.Discard
+	}
+
+	l := NewJSONLogger(out, cfg.Level)
+	slog.SetDefault(l)
+	return l, nil
+}
