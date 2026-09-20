@@ -1,0 +1,8 @@
+{
+  "track_id": "pear_p2p_engine_20260920",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-09-20T10:41:00Z",
+  "updated_at": "2026-09-20T10:41:00Z",
+  "description": "Pure Go Pear P2P Swarm & Replication Engine (Hyperswarm discovery, peer sync, changeset replication)"
+}
