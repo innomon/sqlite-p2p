@@ -22,11 +22,11 @@
 
 ---
 
-## Phase 3: P2P Feed Broadcast Sync & Graceful Shutdown
+## Phase 3: P2P Feed Broadcast Sync & Graceful Shutdown [checkpoint: 7cf89f5]
 - [x] Task: Implement P2P Feed Broadcast Sync (6c87d5a)
     - [x] Write Tests: Unit and integration tests verifying `engine.SyncPeers` replays and broadcasts all feed changesets to connected peers and catches up lagged nodes
     - [x] Implement: Add `SyncPeers(ctx)` method to `ReplicationEngine` and connect to `crm-peer sync` CLI subcommand
 - [x] Task: Implement graceful daemon shutdown in `crm-peer start` (052275a)
     - [x] Write Tests: Unit tests verifying `crm-peer start` closes swarm and replicator on context cancellation
     - [x] Implement: Wire `swarm.Close()` and `replicator.Close()` with structured log logging shutdown lifecycle in `commands.go`
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: P2P Feed Broadcast Sync & Graceful Shutdown' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: P2P Feed Broadcast Sync & Graceful Shutdown' (Protocol in workflow.md) (7cf89f5)
