@@ -23,9 +23,9 @@
 ---
 
 ## Phase 3: Autobase Causal Ordering & LWW State Convergence
-- [ ] Task: Wire Autobase multi-writer consensus and causal linearization
-    - [ ] Write Tests: Tests verifying multi-writer changesets linearize into a deterministic unified sequence
-    - [ ] Implement: `internal/p2p/autobase.go` managing multi-peer Hypercore feeds
+- [x] Task: Wire Autobase multi-writer consensus and causal linearization (d9bd105)
+    - [x] Write Tests: Tests verifying multi-writer changesets linearize into a deterministic unified sequence
+    - [x] Implement: `internal/p2p/autobase.go` managing multi-peer Hypercore feeds
 - [ ] Task: Implement LWW conflict resolution and SQLite `crm_store` materializer
     - [ ] Write Tests: Unit tests verifying concurrent writes to the same key resolve using timestamp/sequence LWW semantics
     - [ ] Implement: Conflict interceptor in `internal/p2p/engine.go` applying remote changesets to SQLite repository
