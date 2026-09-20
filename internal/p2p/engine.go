@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -19,6 +20,14 @@ type ReplicationEngine struct {
 	replicator *Replicator
 	autobase   *AutobaseManager
 	timestamps map[string]int64 // Track latest known timestamp per key for LWW resolution
+	logger     *slog.Logger
+}
+
+// SetLogger attaches a structured logger to the ReplicationEngine.
+func (e *ReplicationEngine) SetLogger(l *slog.Logger) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.logger = l
 }
 
 // NewReplicationEngine creates and initializes a ReplicationEngine.
@@ -36,6 +45,7 @@ func NewReplicationEngine(repo *store.Repository, feed *ChangesetFeed, replicato
 		timestamps: make(map[string]int64),
 	}
 }
+
 
 // PutLocal performs a local write to SQLite and appends the resulting changeset to Hypercore and broadcasts it.
 func (e *ReplicationEngine) PutLocal(ctx context.Context, key string, metadata json.RawMessage, data []byte) error {
@@ -74,6 +84,15 @@ func (e *ReplicationEngine) PutLocal(ctx context.Context, key string, metadata j
 		_ = e.replicator.BroadcastChangeset(cs)
 	}
 
+	if e.logger != nil {
+		e.logger.Info("local record stored and changeset appended",
+			"event", "local_mutation_applied",
+			"key", key,
+			"operation", op,
+			"timestamp", now,
+		)
+	}
+
 	return nil
 }
 
@@ -105,6 +124,14 @@ func (e *ReplicationEngine) DeleteLocal(ctx context.Context, key string) error {
 		_ = e.replicator.BroadcastChangeset(cs)
 	}
 
+	if e.logger != nil {
+		e.logger.Info("local record deleted and changeset appended",
+			"event", "local_delete_applied",
+			"key", key,
+			"timestamp", now,
+		)
+	}
+
 	return nil
 }
 
@@ -117,6 +144,14 @@ func (e *ReplicationEngine) ApplyRemoteChangeset(ctx context.Context, cs *store.
 	if existingTS, ok := e.timestamps[cs.Key]; ok {
 		if existingTS >= cs.Timestamp {
 			// Local state is newer or equal; skip applying obsolete changeset
+			if e.logger != nil {
+				e.logger.Info("obsolete changeset dropped by LWW conflict resolution",
+					"event", "lww_changeset_skipped",
+					"key", cs.Key,
+					"local_timestamp", existingTS,
+					"remote_timestamp", cs.Timestamp,
+				)
+			}
 			return nil
 		}
 	}
@@ -143,8 +178,18 @@ func (e *ReplicationEngine) ApplyRemoteChangeset(ctx context.Context, cs *store.
 		_, _ = e.feed.Append(cs)
 	}
 
+	if e.logger != nil {
+		e.logger.Info("remote changeset applied to local state",
+			"event", "remote_changeset_applied",
+			"key", cs.Key,
+			"operation", cs.Operation,
+			"timestamp", cs.Timestamp,
+		)
+	}
+
 	return nil
 }
+
 
 // Feed returns the underlying ChangesetFeed.
 func (e *ReplicationEngine) Feed() *ChangesetFeed {

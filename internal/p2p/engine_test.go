@@ -1,12 +1,15 @@
 package p2p_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"crm-sqlite-pear-p2p/internal/logger"
 	"crm-sqlite-pear-p2p/internal/p2p"
 	"crm-sqlite-pear-p2p/internal/store"
 )
@@ -164,3 +167,52 @@ func TestEngineLocalMutationCapture(t *testing.T) {
 		t.Fatalf("expected key %s, got %s", testKey, cs.Key)
 	}
 }
+
+func TestEngineStructuredLogging(t *testing.T) {
+	ctx := context.Background()
+	var buf bytes.Buffer
+	testLog := logger.NewJSONLogger(&buf, "DEBUG")
+
+	db, err := store.OpenDB(":memory:", true)
+	if err != nil {
+		t.Fatalf("OpenDB error: %v", err)
+	}
+	defer db.Close()
+
+	repo := store.NewRepository(db)
+	engine := p2p.NewReplicationEngine(repo, nil, nil)
+	engine.SetLogger(testLog)
+
+	testKey := "in.qzip.crm.customer:ENGINELOG"
+	t1 := time.Now().UnixNano()
+	t2 := t1 + int64(time.Hour)
+
+	// Apply newer changeset
+	newer := &store.Changeset{
+		Timestamp: t2,
+		Sequence:  2,
+		Operation: store.OpInsert,
+		Key:       testKey,
+		Metadata:  json.RawMessage(`{"tier":"gold"}`),
+	}
+	_ = engine.ApplyRemoteChangeset(ctx, newer)
+
+	// Apply older changeset (should trigger lww_skipped)
+	older := &store.Changeset{
+		Timestamp: t1,
+		Sequence:  1,
+		Operation: store.OpUpdate,
+		Key:       testKey,
+		Metadata:  json.RawMessage(`{"tier":"silver"}`),
+	}
+	_ = engine.ApplyRemoteChangeset(ctx, older)
+
+	out := buf.String()
+	if !strings.Contains(out, "remote_changeset_applied") {
+		t.Errorf("expected remote_changeset_applied in log, got: %s", out)
+	}
+	if !strings.Contains(out, "lww_changeset_skipped") {
+		t.Errorf("expected lww_changeset_skipped in log, got: %s", out)
+	}
+}
+
