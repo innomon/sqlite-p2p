@@ -48,14 +48,19 @@ func TestSwarmManagerLifecycle(t *testing.T) {
 	}
 }
 
-func TestSwarmManagerDirectPairing(t *testing.T) {
+func TestSwarmManagerDHTTopicDiscovery(t *testing.T) {
+	// Node 1 (Seed node)
 	sm1, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{Port: 0})
 	if err != nil {
 		t.Fatalf("sm1 init error: %v", err)
 	}
 	defer sm1.Close()
 
-	sm2, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{Port: 0})
+	// Node 2 bootstrapped via Node 1's DHT address
+	sm2, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{
+		Port:      0,
+		Bootstrap: []string{sm1.DHTAddr()},
+	})
 	if err != nil {
 		t.Fatalf("sm2 init error: %v", err)
 	}
@@ -69,23 +74,21 @@ func TestSwarmManagerDirectPairing(t *testing.T) {
 		connectedChan <- struct{}{}
 	})
 
-	// Direct dial between sm1 and sm2
-	err = sm1.ConnectDirect("127.0.0.1", sm2.Port())
-	if err != nil {
-		t.Fatalf("direct connect error: %v", err)
-	}
+	topic := p2p.DeriveTopic("in.qzip.crm.cluster.discovery.test")
+	_ = sm1.Join(topic)
+	_ = sm2.Join(topic)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	select {
 	case <-connectedChan:
-		// Success - peer connection established
+		// Peer connection established via DHT swarm discovery
 	case <-ctx.Done():
-		t.Fatalf("timed out waiting for peer connection event")
+		t.Fatalf("timed out waiting for swarm peer discovery connection")
 	}
 
 	if sm1.PeerCount() == 0 && sm2.PeerCount() == 0 {
-		t.Fatalf("expected peer count > 0 on at least one side")
+		t.Fatalf("expected peer count > 0")
 	}
 }
