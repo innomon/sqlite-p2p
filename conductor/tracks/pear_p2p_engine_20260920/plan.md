@@ -22,14 +22,14 @@
 
 ---
 
-## Phase 3: Autobase Causal Ordering & LWW State Convergence
+## Phase 3: Autobase Causal Ordering & LWW State Convergence [checkpoint: 9e8ca56]
 - [x] Task: Wire Autobase multi-writer consensus and causal linearization (d9bd105)
     - [x] Write Tests: Tests verifying multi-writer changesets linearize into a deterministic unified sequence
     - [x] Implement: `internal/p2p/autobase.go` managing multi-peer Hypercore feeds
 - [x] Task: Implement LWW conflict resolution and SQLite `crm_store` materializer (8bb3818)
     - [x] Write Tests: Unit tests verifying concurrent writes to the same key resolve using timestamp/sequence LWW semantics
     - [x] Implement: Conflict interceptor in `internal/p2p/engine.go` applying remote changesets to SQLite repository
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Autobase Causal Ordering & LWW State Convergence' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Autobase Causal Ordering & LWW State Convergence' (Protocol in workflow.md) (9e8ca56)
 
 ---
 
