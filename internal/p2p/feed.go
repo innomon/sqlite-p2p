@@ -42,6 +42,11 @@ func (f *ChangesetFeed) DiscoveryKey() [32]byte {
 	return f.core.DiscoveryKey
 }
 
+// Core returns the underlying Hypercore instance for protocol attachments.
+func (f *ChangesetFeed) Core() *hypercore.Hypercore {
+	return f.core
+}
+
 // Len returns the number of changesets currently recorded in the feed.
 func (f *ChangesetFeed) Len() uint64 {
 	f.mu.RLock()
