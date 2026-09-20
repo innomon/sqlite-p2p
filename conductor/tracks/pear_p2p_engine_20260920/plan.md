@@ -12,9 +12,9 @@
 ---
 
 ## Phase 2: Hyperswarm P2P Discovery & Connection Manager
-- [ ] Task: Implement P2P Swarm connection manager
-    - [ ] Write Tests: Unit tests for topic joining, peer discovery events, and connection lifecycle handlers
-    - [ ] Implement: `internal/p2p/swarm.go` wrapping pure Go `hyperswarm` and connection multiplexing
+- [x] Task: Implement P2P Swarm connection manager (192915a)
+    - [x] Write Tests: Unit tests for topic joining, peer discovery events, and connection lifecycle handlers
+    - [x] Implement: `internal/p2p/swarm.go` wrapping pure Go `hyperswarm` and connection multiplexing
 - [ ] Task: Implement bidirectional changeset replication protocol
     - [ ] Write Tests: Unit tests for peer handshake, changeset exchange, and feed replication over mock/local connections
     - [ ] Implement: `internal/p2p/replicator.go` streaming changesets across connected peers
