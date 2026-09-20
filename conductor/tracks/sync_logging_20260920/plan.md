@@ -11,14 +11,14 @@
 
 ---
 
-## Phase 2: Instrumentation of P2P Swarm, Replicator, & Engine
+## Phase 2: Instrumentation of P2P Swarm, Replicator, & Engine [checkpoint: 8e69e0e]
 - [x] Task: Instrument Swarm and Replicator lifecycle with structured logs (d44f651)
     - [x] Write Tests: Unit tests asserting structured log emission during swarm join/leave and replicator stream handling
     - [x] Implement: Inject logger into `SwarmManager` and `Replicator`, log topic discovery, peer connections/disconnections, and broadcast events
 - [x] Task: Instrument ReplicationEngine and LWW conflict resolution (5883be9)
     - [x] Write Tests: Unit tests verifying structured log output for local mutations, remote applications, and LWW dropped obsolete changesets
     - [x] Implement: Update `ReplicationEngine` to emit structured logs on apply and LWW drop
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Instrumentation of P2P Swarm, Replicator, & Engine' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Instrumentation of P2P Swarm, Replicator, & Engine' (Protocol in workflow.md) (8e69e0e)
 
 ---
 
