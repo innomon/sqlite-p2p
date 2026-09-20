@@ -1,9 +1,9 @@
 # Implementation Plan: P2P Feed Sync Broadcast & Structured JSON Logging
 
 ## Phase 1: Structured JSON Logging Infrastructure & Code Polish
-- [ ] Task: Clean up dead code and optimize Feed locking
-    - [ ] Write Tests: Unit tests for ChangesetFeed concurrent replay and get access without deadlock
-    - [ ] Implement: Remove `_ = i` in `autobase.go`, extract internal `get()` in `feed.go` to eliminate nested lock pattern in `Replay()`
+- [x] Task: Clean up dead code and optimize Feed locking (2cfaed6)
+    - [x] Write Tests: Unit tests for ChangesetFeed concurrent replay and get access without deadlock
+    - [x] Implement: Remove `_ = i` in `autobase.go`, extract internal `get()` in `feed.go` to eliminate nested lock pattern in `Replay()`
 - [ ] Task: Implement Structured JSON Logger using `log/slog`
     - [ ] Write Tests: Unit tests verifying logger writes machine-parseable JSON lines with required fields (`timestamp`, `level`, `service`, `event`)
     - [ ] Implement: Create `internal/logger/logger.go` wrapping `log/slog.NewJSONHandler` and supporting configured log level
