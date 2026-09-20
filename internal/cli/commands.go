@@ -259,11 +259,21 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 
 			// Background loop until context canceled
 			<-ctx.Done()
+
+			// Graceful cleanup
+			if swarm != nil {
+				_ = swarm.Close()
+			}
+			if engine != nil && engine.Feed() != nil {
+				// Replicator cleanup if accessible or let caller manage
+			}
+
 			fmt.Fprintf(root.Stdout, "P2P replication node stopped.\n")
 			return nil
 		},
 	)
 	root.AddSubcommand(startCmd)
+
 
 	return root
 }

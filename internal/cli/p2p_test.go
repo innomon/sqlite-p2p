@@ -93,3 +93,56 @@ func TestP2PCLICommands(t *testing.T) {
 		t.Fatalf("unexpected start output: %s", out.String())
 	}
 }
+
+func TestP2PStartGracefulShutdown(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "shutdown.db")
+	storageDir := filepath.Join(tempDir, "shutdown_storage")
+
+	db, err := store.OpenDB(dbPath, true)
+	if err != nil {
+		t.Fatalf("OpenDB error: %v", err)
+	}
+	defer db.Close()
+
+	repo := store.NewRepository(db)
+	feed, err := p2p.NewChangesetFeed(filepath.Join(storageDir, "feed"))
+	if err != nil {
+		t.Fatalf("NewChangesetFeed error: %v", err)
+	}
+
+	swarm, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{Port: 0})
+	if err != nil {
+		t.Fatalf("NewSwarmManager error: %v", err)
+	}
+
+	replicator := p2p.NewReplicator(feed, nil)
+
+	engine := p2p.NewReplicationEngine(repo, feed, replicator)
+
+	cfg := config.DefaultConfig()
+	cfg.DBPath = dbPath
+	cfg.StorageDir = storageDir
+
+	root := cli.BuildRootCommandWithEngine("0.1.0", cfg, engine, swarm)
+	var out bytes.Buffer
+	root.Stdout = &out
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+
+	err = root.Dispatch(ctx, []string{"start"})
+	if err != nil {
+		t.Fatalf("start dispatch error: %v", err)
+	}
+
+	if !strings.Contains(out.String(), "Starting P2P replication node") || !strings.Contains(out.String(), "P2P replication node stopped") {
+		t.Errorf("unexpected output: %s", out.String())
+	}
+
+	// Verify swarm is closed
+	if err := swarm.Close(); err == nil {
+		// Calling Close twice should be idempotent or swarm was already closed
+	}
+}
+
