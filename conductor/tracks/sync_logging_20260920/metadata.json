@@ -1,0 +1,8 @@
+{
+  "track_id": "sync_logging_20260920",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-09-20T19:20:00Z",
+  "updated_at": "2026-09-20T19:20:00Z",
+  "description": "Implement Peer Feed Broadcast for sync command and structured JSON logging across P2P lifecycle (F-08 & NFR compliance)"
+}
