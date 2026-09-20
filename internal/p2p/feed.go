@@ -7,6 +7,7 @@ import (
 
 	"crm-sqlite-pear-p2p/internal/store"
 
+	"go-pear/pkg/autobase"
 	"go-pear/pkg/hypercore"
 )
 
@@ -83,7 +84,19 @@ func (f *ChangesetFeed) Get(seq uint64) (*store.Changeset, error) {
 		return nil, fmt.Errorf("failed to get block %d: %w", seq, err)
 	}
 
-	return store.DecodeChangeset(raw)
+	// First try decoding as raw store.Changeset JSON
+	cs, err := store.DecodeChangeset(raw)
+	if err == nil {
+		return cs, nil
+	}
+
+	// Otherwise, check if it's an Autobase CausalNode wrapping the changeset
+	node, errNode := autobase.DecodeCausalNode(raw)
+	if errNode == nil {
+		return store.DecodeChangeset(node.Value)
+	}
+
+	return nil, fmt.Errorf("failed to decode changeset: %w", err)
 }
 
 // Replay reads changesets sequentially starting from startSeq and passes each to visitor.
@@ -93,12 +106,7 @@ func (f *ChangesetFeed) Replay(startSeq uint64, visitor func(cs *store.Changeset
 
 	total := f.core.Length()
 	for i := startSeq; i < total; i++ {
-		raw, err := f.core.Get(i)
-		if err != nil {
-			return fmt.Errorf("failed to read block %d: %w", i, err)
-		}
-
-		cs, err := store.DecodeChangeset(raw)
+		cs, err := f.Get(i)
 		if err != nil {
 			return fmt.Errorf("failed to decode block %d: %w", i, err)
 		}
