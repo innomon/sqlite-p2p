@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"sync"
 
@@ -20,6 +21,14 @@ type Replicator struct {
 	handler  ChangesetHandler
 	peers    map[net.Conn]struct{}
 	stopChan chan struct{}
+	logger   *slog.Logger
+}
+
+// SetLogger attaches a structured logger to the Replicator.
+func (r *Replicator) SetLogger(l *slog.Logger) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.logger = l
 }
 
 // NewReplicator creates a new Replicator instance.
@@ -31,6 +40,7 @@ func NewReplicator(feed *ChangesetFeed, handler ChangesetHandler) *Replicator {
 		stopChan: make(chan struct{}),
 	}
 }
+
 
 // AddPeer registers an active peer connection for bidirectional replication.
 func (r *Replicator) AddPeer(conn net.Conn) {
@@ -78,7 +88,23 @@ func (r *Replicator) HandleConnection(conn net.Conn) {
 
 		cs, err := store.DecodeChangeset(buf)
 		if err != nil {
+			if r.logger != nil {
+				r.logger.Warn("failed to decode replication changeset",
+					"event", "changeset_decode_failed",
+					"error", err,
+					"payload_len", len(buf),
+				)
+			}
 			continue
+		}
+
+		if r.logger != nil {
+			r.logger.Info("changeset received over replication",
+				"event", "changeset_received",
+				"key", cs.Key,
+				"operation", cs.Operation,
+				"timestamp", cs.Timestamp,
+			)
 		}
 
 		// Record to local feed if not already present
@@ -88,7 +114,13 @@ func (r *Replicator) HandleConnection(conn net.Conn) {
 
 		// Dispatch to handler (e.g. Autobase / SQLite apply)
 		if r.handler != nil {
-			_ = r.handler(cs)
+			if err := r.handler(cs); err != nil && r.logger != nil {
+				r.logger.Warn("changeset handler error",
+					"event", "changeset_handler_error",
+					"key", cs.Key,
+					"error", err,
+				)
+			}
 		}
 	}
 }
@@ -97,6 +129,13 @@ func (r *Replicator) HandleConnection(conn net.Conn) {
 func (r *Replicator) BroadcastChangeset(cs *store.Changeset) error {
 	raw, err := cs.Encode()
 	if err != nil {
+		if r.logger != nil {
+			r.logger.Error("failed to encode changeset for broadcast",
+				"event", "changeset_encode_failed",
+				"key", cs.Key,
+				"error", err,
+			)
+		}
 		return fmt.Errorf("encode changeset: %w", err)
 	}
 
@@ -110,14 +149,25 @@ func (r *Replicator) BroadcastChangeset(cs *store.Changeset) error {
 	for p := range r.peers {
 		peers = append(peers, p)
 	}
+	l := r.logger
 	r.mu.RUnlock()
 
 	for _, p := range peers {
 		_, _ = p.Write(msg)
 	}
 
+	if l != nil {
+		l.Info("changeset broadcast to peers",
+			"event", "changeset_broadcast",
+			"key", cs.Key,
+			"operation", cs.Operation,
+			"peer_count", len(peers),
+		)
+	}
+
 	return nil
 }
+
 
 // PeerCount returns the count of active replication channels.
 func (r *Replicator) PeerCount() int {

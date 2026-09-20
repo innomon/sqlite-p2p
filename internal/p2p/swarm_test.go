@@ -1,10 +1,13 @@
 package p2p_test
 
 import (
+	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
+	"crm-sqlite-pear-p2p/internal/logger"
 	"crm-sqlite-pear-p2p/internal/p2p"
 )
 
@@ -47,6 +50,40 @@ func TestSwarmManagerLifecycle(t *testing.T) {
 		t.Fatalf("expected 0 active topics after leaving, got %d", statsAfter.ActiveTopics)
 	}
 }
+
+func TestSwarmManagerStructuredLogging(t *testing.T) {
+	var buf bytes.Buffer
+	testLog := logger.NewJSONLogger(&buf, "DEBUG")
+
+	opts := p2p.SwarmManagerOptions{
+		Port: 0,
+	}
+
+	sm, err := p2p.NewSwarmManager(opts)
+	if err != nil {
+		t.Fatalf("NewSwarmManager error: %v", err)
+	}
+	defer sm.Close()
+
+	sm.SetLogger(testLog)
+
+	topic := p2p.DeriveTopic("in.qzip.crm.cluster.logtest")
+	if err := sm.Join(topic); err != nil {
+		t.Fatalf("Join error: %v", err)
+	}
+	if err := sm.Leave(topic); err != nil {
+		t.Fatalf("Leave error: %v", err)
+	}
+
+	out := buf.String()
+	if !strings.Contains(out, "topic_joined") {
+		t.Errorf("expected topic_joined event in log, got: %s", out)
+	}
+	if !strings.Contains(out, "topic_left") {
+		t.Errorf("expected topic_left event in log, got: %s", out)
+	}
+}
+
 
 func TestSwarmManagerDHTTopicDiscovery(t *testing.T) {
 	// Node 1 (Seed node)

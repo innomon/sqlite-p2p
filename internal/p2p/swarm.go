@@ -1,7 +1,9 @@
 package p2p
 
 import (
+	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"net"
 	"strconv"
 	"sync"
@@ -37,7 +39,16 @@ type SwarmManager struct {
 	activeTopics map[[32]byte]*hyperswarm.PeerDiscovery
 	peerHandlers []PeerConnectionHandler
 	rawHandlers  []RawConnectionHandler
+	logger       *slog.Logger
 }
+
+// SetLogger attaches a structured logger to the SwarmManager.
+func (sm *SwarmManager) SetLogger(l *slog.Logger) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	sm.logger = l
+}
+
 
 // NewSwarmManager initializes a new SwarmManager.
 func NewSwarmManager(opts SwarmManagerOptions) (*SwarmManager, error) {
@@ -67,7 +78,16 @@ func (sm *SwarmManager) handleConnection(conn net.Conn, peer *hyperswarm.PeerCon
 	copy(pHandlers, sm.peerHandlers)
 	rHandlers := make([]RawConnectionHandler, len(sm.rawHandlers))
 	copy(rHandlers, sm.rawHandlers)
+	l := sm.logger
 	sm.mu.RUnlock()
+
+	if l != nil {
+		l.Info("peer connected",
+			"event", "peer_connected",
+			"peer_pk", hex.EncodeToString(peer.RemotePublicKey[:]),
+			"is_initiator", peer.IsInitiator,
+		)
+	}
 
 	for _, h := range pHandlers {
 		h(peer.RemotePublicKey, peer.IsInitiator)
@@ -100,10 +120,19 @@ func (sm *SwarmManager) Join(topic [32]byte) error {
 		Client: true,
 	})
 	if err != nil {
+		if sm.logger != nil {
+			sm.logger.Error("failed to join topic", "event", "topic_join_failed", "error", err)
+		}
 		return err
 	}
 
 	sm.activeTopics[topic] = pd
+	if sm.logger != nil {
+		sm.logger.Info("topic joined",
+			"event", "topic_joined",
+			"topic", hex.EncodeToString(topic[:]),
+		)
+	}
 	return sm.swarm.Flush()
 }
 
@@ -113,8 +142,15 @@ func (sm *SwarmManager) Leave(topic [32]byte) error {
 	defer sm.mu.Unlock()
 
 	delete(sm.activeTopics, topic)
+	if sm.logger != nil {
+		sm.logger.Info("topic left",
+			"event", "topic_left",
+			"topic", hex.EncodeToString(topic[:]),
+		)
+	}
 	return sm.swarm.Leave(topic)
 }
+
 
 // OnPeerConnected registers a callback for high-level peer connection events.
 func (sm *SwarmManager) OnPeerConnected(fn PeerConnectionHandler) {

@@ -1,13 +1,16 @@
 package p2p_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"crm-sqlite-pear-p2p/internal/logger"
 	"crm-sqlite-pear-p2p/internal/p2p"
 	"crm-sqlite-pear-p2p/internal/store"
 )
@@ -126,3 +129,28 @@ func TestReplicatorInvalidPayload(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 	_ = rep.Close()
 }
+
+func TestReplicatorStructuredLogging(t *testing.T) {
+	var buf bytes.Buffer
+	testLog := logger.NewJSONLogger(&buf, "DEBUG")
+
+	rep := p2p.NewReplicator(nil, nil)
+	rep.SetLogger(testLog)
+	defer rep.Close()
+
+	cs := &store.Changeset{
+		Timestamp: time.Now().UnixNano(),
+		Sequence:  1,
+		Operation: store.OpInsert,
+		Key:       "in.qzip.crm.customer:LOGTEST",
+	}
+
+	// Broadcast should log event
+	_ = rep.BroadcastChangeset(cs)
+
+	out := buf.String()
+	if !strings.Contains(out, "changeset_broadcast") {
+		t.Errorf("expected changeset_broadcast in log, got: %s", out)
+	}
+}
+
