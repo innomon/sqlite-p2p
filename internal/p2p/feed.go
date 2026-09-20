@@ -78,7 +78,11 @@ func (f *ChangesetFeed) Append(cs *store.Changeset) (uint64, error) {
 func (f *ChangesetFeed) Get(seq uint64) (*store.Changeset, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
+	return f.get(seq)
+}
 
+// get retrieves and deserializes a block without acquiring f.mu (assumes lock is held by caller).
+func (f *ChangesetFeed) get(seq uint64) (*store.Changeset, error) {
 	raw, err := f.core.Get(seq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get block %d: %w", seq, err)
@@ -106,7 +110,7 @@ func (f *ChangesetFeed) Replay(startSeq uint64, visitor func(cs *store.Changeset
 
 	total := f.core.Length()
 	for i := startSeq; i < total; i++ {
-		cs, err := f.Get(i)
+		cs, err := f.get(i)
 		if err != nil {
 			return fmt.Errorf("failed to decode block %d: %w", i, err)
 		}
@@ -118,3 +122,4 @@ func (f *ChangesetFeed) Replay(startSeq uint64, visitor func(cs *store.Changeset
 
 	return nil
 }
+

@@ -142,3 +142,47 @@ func TestChangesetFeedInvalidDir(t *testing.T) {
 		t.Fatalf("expected error creating feed in invalid path")
 	}
 }
+
+func TestChangesetFeedConcurrentReplayAndAppend(t *testing.T) {
+	tempDir := t.TempDir()
+	feed, err := p2p.NewChangesetFeed(filepath.Join(tempDir, "concurrent_feed"))
+	if err != nil {
+		t.Fatalf("NewChangesetFeed error: %v", err)
+	}
+
+	// Seed initial items
+	for i := 0; i < 5; i++ {
+		_, err := feed.Append(&store.Changeset{
+			Timestamp: int64(1000 + i),
+			Sequence:  uint64(i + 1),
+			Operation: store.OpInsert,
+			Key:       "in.qzip.crm.customer:INIT",
+		})
+		if err != nil {
+			t.Fatalf("append %d error: %v", i, err)
+		}
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 20; i++ {
+			_ = feed.Replay(0, func(cs *store.Changeset) error {
+				_ = cs.Key
+				return nil
+			})
+		}
+	}()
+
+	for i := 0; i < 20; i++ {
+		_, _ = feed.Append(&store.Changeset{
+			Timestamp: int64(2000 + i),
+			Sequence:  uint64(10 + i),
+			Operation: store.OpUpdate,
+			Key:       "in.qzip.crm.customer:CONCURRENT",
+		})
+	}
+
+	<-done
+}
+

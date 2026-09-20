@@ -65,13 +65,12 @@ func (m *AutobaseManager) LinearizeChangesets() ([]*store.Changeset, error) {
 	}
 
 	result := make([]*store.Changeset, 0, len(values))
-	for i, val := range values {
+	for _, val := range values {
 		cs, err := store.DecodeChangeset(val)
 		if err != nil {
 			// Skip or continue if raw node is non-changeset payload
 			continue
 		}
-		_ = i
 		result = append(result, cs)
 	}
 
