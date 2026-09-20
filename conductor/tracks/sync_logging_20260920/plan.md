@@ -12,9 +12,9 @@
 ---
 
 ## Phase 2: Instrumentation of P2P Swarm, Replicator, & Engine
-- [ ] Task: Instrument Swarm and Replicator lifecycle with structured logs
-    - [ ] Write Tests: Unit tests asserting structured log emission during swarm join/leave and replicator stream handling
-    - [ ] Implement: Inject logger into `SwarmManager` and `Replicator`, log topic discovery, peer connections/disconnections, and broadcast events
+- [x] Task: Instrument Swarm and Replicator lifecycle with structured logs (d44f651)
+    - [x] Write Tests: Unit tests asserting structured log emission during swarm join/leave and replicator stream handling
+    - [x] Implement: Inject logger into `SwarmManager` and `Replicator`, log topic discovery, peer connections/disconnections, and broadcast events
 - [ ] Task: Instrument ReplicationEngine and LWW conflict resolution
     - [ ] Write Tests: Unit tests verifying structured log output for local mutations, remote applications, and LWW dropped obsolete changesets
     - [ ] Implement: Update `ReplicationEngine` to emit structured logs on apply and LWW drop
