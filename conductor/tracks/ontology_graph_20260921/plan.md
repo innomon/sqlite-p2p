@@ -1,9 +1,9 @@
 # Implementation Plan: Markdown Interaction Watcher & SQLite Ontology Graph Traversal
 
 ## Phase 1: SQLite Ontology Schema & Recursive CTE Graph Traversal
-- [ ] Task: Create ontology schema tables and Repository methods
-    - [ ] Write Tests: Unit tests for inserting, updating, and querying `ontology_nodes` and `ontology_edges`
-    - [ ] Implement: Tables migration and CRUD queries in `internal/store/ontology.go`
+- [x] Task: Create ontology schema tables and Repository methods [b18c32a]
+    - [x] Write Tests: Unit tests for inserting, updating, and querying `ontology_nodes` and `ontology_edges`
+    - [x] Implement: Tables migration and CRUD queries in `internal/store/ontology.go`
 - [ ] Task: Implement Recursive CTE graph queries
     - [ ] Write Tests: Unit tests verifying multi-hop pathfinding, neighbor lookups, and cycle handling using SQLite recursive CTEs
     - [ ] Implement: Graph traversal methods in `internal/store/ontology.go`
