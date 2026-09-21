@@ -15,6 +15,22 @@ CREATE TABLE IF NOT EXISTS crm_store (
     metadata TEXT CHECK(json_valid(metadata)),
     data BLOB
 ) WITHOUT ROWID;
+
+CREATE TABLE IF NOT EXISTS ontology_nodes (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    type TEXT NOT NULL,
+    metadata TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ontology_edges (
+    source TEXT NOT NULL,
+    target TEXT NOT NULL,
+    relationship TEXT NOT NULL,
+    weight REAL DEFAULT 1.0,
+    metadata TEXT,
+    PRIMARY KEY (source, target, relationship)
+);
 `
 
 // OpenDB opens a pure Go SQLite database, applies required PRAGMAs, and creates the crm_store table.
