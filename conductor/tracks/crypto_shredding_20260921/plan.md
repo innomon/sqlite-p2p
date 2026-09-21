@@ -11,14 +11,14 @@
 
 ---
 
-## Phase 2: Repository & Replication Engine Crypto Integration
+## Phase 2: Repository & Replication Engine Crypto Integration [checkpoint: 17630cc]
 - [x] Task: Integrate encryption and crypto-shredding into Repository and ChangesetTracker [4df7206]
     - [x] Write Tests: Unit tests verifying `crm_store.data` contains ciphertext at rest and `Delete` destroys the customer key
     - [x] Implement: Intercept `Put`, `Get`, and `Delete` in `internal/store/repository.go` and `internal/store/changeset.go`
 - [x] Task: Integrate encrypted changeset replication in ReplicationEngine [8335604]
     - [x] Write Tests: Unit tests verifying changesets broadcast over P2P contain encrypted payloads and remote nodes decrypt correctly with shared/registered keys
     - [x] Implement: Update `internal/p2p/engine.go` to handle encrypted payloads and crypto-shredding on remote delete
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Repository & Replication Engine Crypto Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Repository & Replication Engine Crypto Integration' (Protocol in workflow.md)
 
 ---
 
