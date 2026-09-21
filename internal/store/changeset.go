@@ -87,6 +87,7 @@ func (t *ChangesetTracker) emit(cs *Changeset) {
 }
 
 // Put writes to the repository and emits an OpInsert or OpUpdate changeset.
+// If the underlying repository encrypts payloads, the emitted changeset data will contain the ciphertext.
 func (t *ChangesetTracker) Put(ctx context.Context, key string, metadata json.RawMessage, data []byte) error {
 	// Check if key already exists to distinguish Insert vs Update
 	_, err := t.repo.Get(ctx, key)
@@ -99,13 +100,19 @@ func (t *ChangesetTracker) Put(ctx context.Context, key string, metadata json.Ra
 		return err
 	}
 
+	// Capture the stored raw data (ciphertext if encrypted)
+	storedData := data
+	if rawRec, err := t.repo.GetRaw(ctx, key); err == nil {
+		storedData = rawRec.Data
+	}
+
 	cs := &Changeset{
 		Timestamp: time.Now().UnixNano(),
 		Sequence:  t.seq.Add(1),
 		Operation: op,
 		Key:       key,
 		Metadata:  metadata,
-		Data:      data,
+		Data:      storedData,
 	}
 
 	t.emit(cs)
@@ -113,6 +120,7 @@ func (t *ChangesetTracker) Put(ctx context.Context, key string, metadata json.Ra
 }
 
 // Delete removes a record from the repository and emits an OpDelete changeset.
+// If encryption is enabled on the repository, the customer's symmetric key is purged.
 func (t *ChangesetTracker) Delete(ctx context.Context, key string) error {
 	if err := t.repo.Delete(ctx, key); err != nil {
 		return err
@@ -130,10 +138,11 @@ func (t *ChangesetTracker) Delete(ctx context.Context, key string) error {
 }
 
 // ApplyChangeset applies a remote changeset into a repository using LWW semantics.
+// Payloads in incoming changesets are already encrypted, so PutRaw is used to persist them.
 func ApplyChangeset(ctx context.Context, repo *Repository, cs *Changeset) error {
 	switch cs.Operation {
 	case OpInsert, OpUpdate:
-		return repo.Put(ctx, cs.Key, cs.Metadata, cs.Data)
+		return repo.PutRaw(ctx, cs.Key, cs.Metadata, cs.Data)
 	case OpDelete:
 		return repo.Delete(ctx, cs.Key)
 	default:

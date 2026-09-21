@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"crm-sqlite-pear-p2p/internal/crypto"
 	"crm-sqlite-pear-p2p/internal/store"
 )
 
@@ -145,4 +146,73 @@ func TestRepositoryClosedDB(t *testing.T) {
 	_ = repo.Delete(ctx, "k")
 	_, _ = repo.List(ctx, "k", 10, 0)
 	_, _ = repo.Count(ctx, "k")
+}
+
+func TestRepositoryEncryptionAndCryptoShredding(t *testing.T) {
+	db, err := store.OpenDB(":memory:", false)
+	if err != nil {
+		t.Fatalf("failed to open memory db: %v", err)
+	}
+	defer db.Close()
+
+	keys, err := crypto.NewKeyRegistry(db)
+	if err != nil {
+		t.Fatalf("failed to initialize key registry: %v", err)
+	}
+
+	repo := store.NewRepository(db)
+	repo.SetKeyRegistry(keys)
+
+	ctx := context.Background()
+	key := "in.qzip.crm.customer:CRYPTO123"
+	metadata := json.RawMessage(`{"tier":"confidential"}`)
+	plaintext := []byte("Sensitive customer PII: +1-555-123-4567")
+
+	// 1. Put should encrypt data at rest
+	if err := repo.Put(ctx, key, metadata, plaintext); err != nil {
+		t.Fatalf("failed to put encrypted record: %v", err)
+	}
+
+	// 2. Raw record in SQLite should contain ciphertext, not plaintext
+	rawRec, err := repo.GetRaw(ctx, key)
+	if err != nil {
+		t.Fatalf("failed to get raw record: %v", err)
+	}
+	if string(rawRec.Data) == string(plaintext) {
+		t.Fatal("expected crm_store.data to contain ciphertext at rest, but found cleartext")
+	}
+
+	// 3. Get should transparently decrypt to plaintext
+	rec, err := repo.Get(ctx, key)
+	if err != nil {
+		t.Fatalf("failed to get and decrypt record: %v", err)
+	}
+	if string(rec.Data) != string(plaintext) {
+		t.Fatalf("expected %s, got %s", string(plaintext), string(rec.Data))
+	}
+
+	// 4. Delete should remove record and purge key (Crypto-shredding)
+	hasKey, err := keys.HasKey(key)
+	if err != nil || !hasKey {
+		t.Fatalf("expected key to exist before deletion: %v", err)
+	}
+
+	if err := repo.Delete(ctx, key); err != nil {
+		t.Fatalf("failed to delete record: %v", err)
+	}
+
+	hasKeyAfter, err := keys.HasKey(key)
+	if err != nil || hasKeyAfter {
+		t.Fatalf("expected key to be purged after deletion (crypto-shredding), but it still exists")
+	}
+
+	// 5. If historical ciphertext was preserved and retrieved, it cannot be decrypted
+	if err := repo.PutRaw(ctx, key, metadata, rawRec.Data); err != nil {
+		t.Fatalf("failed to re-insert historical ciphertext: %v", err)
+	}
+
+	_, err = repo.Get(ctx, key)
+	if err == nil {
+		t.Fatal("expected decryption failure for historical ciphertext whose key was purged, got nil")
+	}
 }
