@@ -23,9 +23,9 @@
 ---
 
 ## Phase 3: CLI Query Subcommands & End-to-End Verification
-- [ ] Task: Implement CLI `query` command group
-    - [ ] Write Tests: CLI tests for `crm-peer query graph` and `crm-peer query nodes`
-    - [ ] Implement: Subcommand handlers in `internal/cli/commands.go`
+- [x] Task: Implement CLI `query` command group [87f4588]
+    - [x] Write Tests: CLI tests for `crm-peer query graph` and `crm-peer query nodes`
+    - [x] Implement: Subcommand handlers in `internal/cli/commands.go`
 - [ ] Task: End-to-end Markdown ingestion and graph traversal verification
     - [ ] Write Tests: Integration test creating Markdown logs, observing background ingestion, and querying traversals via CLI
     - [ ] Implement: Test suite in `tests/ontology_graph_test.go`
