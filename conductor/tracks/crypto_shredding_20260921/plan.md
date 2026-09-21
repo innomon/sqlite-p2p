@@ -23,9 +23,9 @@
 ---
 
 ## Phase 3: CLI Commands & Multi-Node Crypto-Shredding Verification
-- [ ] Task: Implement CLI commands `keygen` and `customer delete`
-    - [ ] Write Tests: CLI integration tests for `crm-peer keygen` and `crm-peer customer delete`
-    - [ ] Implement: CLI subcommand handlers in `internal/cli/commands.go`
+- [x] Task: Implement CLI commands `keygen` and `customer delete` [5f9736e]
+    - [x] Write Tests: CLI integration tests for `crm-peer keygen` and `crm-peer customer delete`
+    - [x] Implement: CLI subcommand handlers in `internal/cli/commands.go`
 - [ ] Task: End-to-end multi-node crypto-shredding verification
     - [ ] Write Tests: E2E test asserting historical Hypercore blocks become permanently undecipherable after customer key deletion
     - [ ] Implement: Verification test suite in `tests/crypto_shredding_test.go`
