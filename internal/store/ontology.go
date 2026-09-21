@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Node represents an entity in the ontology graph (e.g. customer, agent, ticket, skill).
@@ -23,6 +24,15 @@ type Edge struct {
 	Relationship string          `json:"relationship"`
 	Weight       float64         `json:"weight"`
 	Metadata     json.RawMessage `json:"metadata,omitempty"`
+}
+
+// TraversalStep represents a visited node in a graph traversal.
+type TraversalStep struct {
+	NodeID       string  `json:"node_id"`
+	Depth        int     `json:"depth"`
+	Relationship string  `json:"relationship"`
+	Path         string  `json:"path"`
+	TotalWeight  float64 `json:"total_weight"`
 }
 
 // UpsertNode creates or updates an ontology node in SQLite.
@@ -218,3 +228,151 @@ func (r *Repository) DeleteEdge(ctx context.Context, source, target, relationshi
 	}
 	return nil
 }
+
+// TraverseNeighbors traverses the ontology graph from startID up to maxDepth hops, returning connected entities.
+// It avoids infinite recursion on cycles using a visited path tracker in the recursive CTE.
+func (r *Repository) TraverseNeighbors(ctx context.Context, startID string, maxDepth int) ([]TraversalStep, error) {
+	if startID == "" {
+		return nil, errors.New("start node ID cannot be empty")
+	}
+	if maxDepth <= 0 {
+		maxDepth = 1
+	}
+
+	query := `
+	WITH RECURSIVE graph_cte(node_id, depth, relationship, path, total_weight) AS (
+		SELECT 
+			id AS node_id,
+			0 AS depth,
+			'' AS relationship,
+			'/' || id || '/' AS path,
+			0.0 AS total_weight
+		FROM ontology_nodes
+		WHERE id = ?
+
+		UNION ALL
+
+		SELECT 
+			e.target AS node_id,
+			g.depth + 1 AS depth,
+			e.relationship AS relationship,
+			g.path || e.target || '/' AS path,
+			g.total_weight + e.weight AS total_weight
+		FROM ontology_edges e
+		JOIN graph_cte g ON e.source = g.node_id
+		WHERE g.depth < ?
+		  AND INSTR(g.path, '/' || e.target || '/') = 0
+	)
+	SELECT node_id, depth, relationship, path, total_weight
+	FROM graph_cte
+	WHERE depth > 0
+	ORDER BY depth ASC, total_weight ASC;
+	`
+	rows, err := r.db.QueryContext(ctx, query, startID, maxDepth)
+	if err != nil {
+		return nil, fmt.Errorf("failed to traverse neighbors from %s: %w", startID, err)
+	}
+	defer rows.Close()
+
+	var steps []TraversalStep
+	for rows.Next() {
+		var step TraversalStep
+		var rawPath string
+		if err := rows.Scan(&step.NodeID, &step.Depth, &step.Relationship, &rawPath, &step.TotalWeight); err != nil {
+			return nil, fmt.Errorf("failed to scan traversal step: %w", err)
+		}
+		clean := strings.Trim(rawPath, "/")
+		step.Path = strings.ReplaceAll(clean, "/", " -> ")
+		steps = append(steps, step)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during traversal iteration: %w", err)
+	}
+
+	return steps, nil
+}
+
+// FindPath finds the shortest path between startID and targetID up to maxDepth hops.
+func (r *Repository) FindPath(ctx context.Context, startID, targetID string, maxDepth int) ([]TraversalStep, error) {
+	if startID == "" || targetID == "" {
+		return nil, errors.New("start and target node IDs cannot be empty")
+	}
+	if maxDepth <= 0 {
+		maxDepth = 5
+	}
+
+	query := `
+	WITH RECURSIVE graph_cte(node_id, depth, relationship, path, total_weight) AS (
+		SELECT 
+			id AS node_id,
+			0 AS depth,
+			'' AS relationship,
+			'/' || id || '/' AS path,
+			0.0 AS total_weight
+		FROM ontology_nodes
+		WHERE id = ?
+
+		UNION ALL
+
+		SELECT 
+			e.target AS node_id,
+			g.depth + 1 AS depth,
+			e.relationship AS relationship,
+			g.path || e.target || '/' AS path,
+			g.total_weight + e.weight AS total_weight
+		FROM ontology_edges e
+		JOIN graph_cte g ON e.source = g.node_id
+		WHERE g.depth < ?
+		  AND INSTR(g.path, '/' || e.target || '/') = 0
+		  AND g.node_id != ?
+	)
+	SELECT node_id, depth, relationship, path, total_weight
+	FROM graph_cte
+	WHERE depth > 0
+	ORDER BY depth ASC, total_weight ASC;
+	`
+	rows, err := r.db.QueryContext(ctx, query, startID, maxDepth, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query path: %w", err)
+	}
+	defer rows.Close()
+
+	var allSteps []TraversalStep
+	var targetStep *TraversalStep
+	for rows.Next() {
+		var step TraversalStep
+		var rawPath string
+		if err := rows.Scan(&step.NodeID, &step.Depth, &step.Relationship, &rawPath, &step.TotalWeight); err != nil {
+			return nil, fmt.Errorf("failed to scan step: %w", err)
+		}
+		clean := strings.Trim(rawPath, "/")
+		step.Path = strings.ReplaceAll(clean, "/", " -> ")
+		allSteps = append(allSteps, step)
+
+		if step.NodeID == targetID && targetStep == nil {
+			cpy := step
+			targetStep = &cpy
+		}
+	}
+
+	if targetStep == nil {
+		return nil, ErrNotFound
+	}
+
+	var pathSteps []TraversalStep
+	targetNodes := strings.Split(targetStep.Path, " -> ")
+	nodeIndexMap := make(map[string]int)
+	for i, nid := range targetNodes {
+		nodeIndexMap[nid] = i
+	}
+
+	for _, s := range allSteps {
+		if idx, ok := nodeIndexMap[s.NodeID]; ok && idx == s.Depth {
+			pathSteps = append(pathSteps, s)
+		}
+	}
+
+	return pathSteps, nil
+}
+
