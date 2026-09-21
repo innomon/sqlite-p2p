@@ -9,7 +9,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: AES-256-GCM Payload Encryption & Crypto-Shredding Key Registry**
+- [~] **Track: AES-256-GCM Payload Encryption & Crypto-Shredding Key Registry**
   *Link: [./tracks/crypto_shredding_20260921/](./tracks/crypto_shredding_20260921/)*
 
 ---
