@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"crm-sqlite-pear-p2p/internal/config"
@@ -275,6 +276,93 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 	customerCmd.AddSubcommand(keygenCmd)
 	root.AddSubcommand(customerCmd)
 	root.AddSubcommand(keygenCmd)
+
+	// query command
+	queryCmd := NewCommand("query", "Query ontology graph nodes and multi-hop relationships")
+
+	// query nodes [type]
+	queryCmd.AddSubcommand(cliSubcommand(
+		"nodes",
+		"List ontology nodes, optionally filtered by type: query nodes [type]",
+		"crm-peer query nodes [type]",
+		func(ctx context.Context, args []string) error {
+			db, err := store.OpenDB(cfg.DBPath, cfg.EnableWAL)
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			repo := store.NewRepository(db)
+
+			nodeType := ""
+			if len(args) > 0 {
+				nodeType = args[0]
+			}
+
+			nodes, err := repo.ListNodes(ctx, nodeType)
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprintf(root.Stdout, "Found %d ontology node(s):\n", len(nodes))
+			for _, n := range nodes {
+				fmt.Fprintf(root.Stdout, "  - [%s] %s: %s\n", n.Type, n.ID, n.Label)
+			}
+			return nil
+		},
+	))
+
+	// query graph <node_id> [--depth N]
+	queryCmd.AddSubcommand(cliSubcommand(
+		"graph",
+		"Traverse ontology graph from a start node: query graph <node_id> [--depth N]",
+		"crm-peer query graph <node_id> [--depth N]",
+		func(ctx context.Context, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("usage: crm-peer query graph <node_id> [--depth N]")
+			}
+
+			nodeID := args[0]
+			depth := 3
+			for i := 1; i < len(args); i++ {
+				if args[i] == "--depth" && i+1 < len(args) {
+					if d, err := strconv.Atoi(args[i+1]); err == nil && d > 0 {
+						depth = d
+					}
+					i++
+				} else if strings.HasPrefix(args[i], "--depth=") {
+					val := strings.TrimPrefix(args[i], "--depth=")
+					if d, err := strconv.Atoi(val); err == nil && d > 0 {
+						depth = d
+					}
+				}
+			}
+
+			db, err := store.OpenDB(cfg.DBPath, cfg.EnableWAL)
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+			repo := store.NewRepository(db)
+
+			steps, err := repo.TraverseNeighbors(ctx, nodeID, depth)
+			if err != nil {
+				return err
+			}
+
+			fmt.Fprintf(root.Stdout, "Graph Traversal for Node: %s (Max Depth: %d)\n", nodeID, depth)
+			if len(steps) == 0 {
+				fmt.Fprintf(root.Stdout, "  No connected entities found within depth %d.\n", depth)
+				return nil
+			}
+
+			for _, s := range steps {
+				fmt.Fprintf(root.Stdout, "  Hop %d: [%s] -> %s (Path: %s, Weight: %.1f)\n", s.Depth, s.Relationship, s.NodeID, s.Path, s.TotalWeight)
+			}
+			return nil
+		},
+	))
+
+	root.AddSubcommand(queryCmd)
 
 	// peer command
 	peerCmd := NewCommand("peer", "Inspect P2P swarm and peer connections")
