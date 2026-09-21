@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"crm-sqlite-pear-p2p/internal/crypto"
 	"crm-sqlite-pear-p2p/internal/logger"
 	"crm-sqlite-pear-p2p/internal/p2p"
 	"crm-sqlite-pear-p2p/internal/store"
@@ -249,5 +250,121 @@ func TestEngineSyncPeers(t *testing.T) {
 		t.Fatalf("expected 2 broadcast changesets, got %d", count)
 	}
 }
+
+func TestEngineEncryptedReplicationAndCryptoShredding(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	// Setup Node 1
+	db1, err := store.OpenDB(":memory:", true)
+	if err != nil {
+		t.Fatalf("OpenDB db1: %v", err)
+	}
+	defer db1.Close()
+
+	keys1, err := crypto.NewKeyRegistry(db1)
+	if err != nil {
+		t.Fatalf("keys1 init: %v", err)
+	}
+	repo1 := store.NewRepository(db1)
+	repo1.SetKeyRegistry(keys1)
+	feed1, err := p2p.NewChangesetFeed(filepath.Join(tempDir, "feed1"))
+	if err != nil {
+		t.Fatalf("feed1 init: %v", err)
+	}
+	engine1 := p2p.NewReplicationEngine(repo1, feed1, nil)
+
+	// Setup Node 2
+	db2, err := store.OpenDB(":memory:", true)
+	if err != nil {
+		t.Fatalf("OpenDB db2: %v", err)
+	}
+	defer db2.Close()
+
+	keys2, err := crypto.NewKeyRegistry(db2)
+	if err != nil {
+		t.Fatalf("keys2 init: %v", err)
+	}
+	repo2 := store.NewRepository(db2)
+	repo2.SetKeyRegistry(keys2)
+	feed2, err := p2p.NewChangesetFeed(filepath.Join(tempDir, "feed2"))
+	if err != nil {
+		t.Fatalf("feed2 init: %v", err)
+	}
+	engine2 := p2p.NewReplicationEngine(repo2, feed2, nil)
+
+	testKey := "in.qzip.crm.customer:CRYPTOENGINE"
+	metadata := json.RawMessage(`{"tier":"platinum"}`)
+	plaintext := []byte("Top secret client profile PII")
+
+	// 1. PutLocal on Node 1
+	if err := engine1.PutLocal(ctx, testKey, metadata, plaintext); err != nil {
+		t.Fatalf("PutLocal failed: %v", err)
+	}
+
+	// 2. Hypercore feed on Node 1 must contain ciphertext
+	feedHead, err := feed1.Get(0)
+	if err != nil {
+		t.Fatalf("feed1.Get(0) failed: %v", err)
+	}
+	if string(feedHead.Data) == string(plaintext) {
+		t.Fatal("feed head data must be encrypted ciphertext, found plaintext")
+	}
+
+	// 3. Share customer symmetric key with Node 2
+	symKey, err := keys1.GetKey(testKey)
+	if err != nil {
+		t.Fatalf("keys1.GetKey failed: %v", err)
+	}
+	if err := keys2.SetKey(testKey, symKey); err != nil {
+		t.Fatalf("keys2.SetKey failed: %v", err)
+	}
+
+	// 4. Node 2 applies remote changeset from Node 1
+	if err := engine2.ApplyRemoteChangeset(ctx, feedHead); err != nil {
+		t.Fatalf("ApplyRemoteChangeset failed: %v", err)
+	}
+
+	// Node 2 retrieves and decrypts record
+	rec2, err := repo2.Get(ctx, testKey)
+	if err != nil {
+		t.Fatalf("repo2.Get failed: %v", err)
+	}
+	if string(rec2.Data) != string(plaintext) {
+		t.Fatalf("expected %s, got %s", string(plaintext), string(rec2.Data))
+	}
+
+	// 5. DeleteLocal on Node 1 (Crypto-shredding)
+	if err := engine1.DeleteLocal(ctx, testKey); err != nil {
+		t.Fatalf("DeleteLocal failed: %v", err)
+	}
+
+	hasKey1, _ := keys1.HasKey(testKey)
+	if hasKey1 {
+		t.Fatal("expected key1 to be purged on Node 1 after delete")
+	}
+
+	// Get delete changeset from feed1
+	deleteCs, err := feed1.Get(1)
+	if err != nil {
+		t.Fatalf("failed to get delete changeset from feed1: %v", err)
+	}
+
+	// Apply delete changeset on Node 2
+	if err := engine2.ApplyRemoteChangeset(ctx, deleteCs); err != nil {
+		t.Fatalf("ApplyRemoteChangeset delete failed: %v", err)
+	}
+
+	hasKey2, _ := keys2.HasKey(testKey)
+	if hasKey2 {
+		t.Fatal("expected key2 to be purged on Node 2 after applying delete changeset")
+	}
+
+	_, err = repo2.Get(ctx, testKey)
+	if err != store.ErrNotFound {
+		t.Fatalf("expected ErrNotFound on Node 2, got %v", err)
+	}
+}
+
 
 

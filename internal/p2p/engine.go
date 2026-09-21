@@ -63,6 +63,12 @@ func (e *ReplicationEngine) PutLocal(ctx context.Context, key string, metadata j
 		return fmt.Errorf("local put failed: %w", err)
 	}
 
+	// Capture the stored raw data (ciphertext if repository is encryption-aware)
+	storedData := data
+	if rawRec, err := e.repo.GetRaw(ctx, key); err == nil {
+		storedData = rawRec.Data
+	}
+
 	now := time.Now().UnixNano()
 	e.timestamps[key] = now
 
@@ -72,7 +78,7 @@ func (e *ReplicationEngine) PutLocal(ctx context.Context, key string, metadata j
 		Operation: op,
 		Key:       key,
 		Metadata:  metadata,
-		Data:      data,
+		Data:      storedData,
 	}
 
 	if e.autobase != nil {
@@ -159,7 +165,7 @@ func (e *ReplicationEngine) ApplyRemoteChangeset(ctx context.Context, cs *store.
 	// Apply mutation to SQLite repository
 	switch cs.Operation {
 	case store.OpInsert, store.OpUpdate:
-		if err := e.repo.Put(ctx, cs.Key, cs.Metadata, cs.Data); err != nil {
+		if err := e.repo.PutRaw(ctx, cs.Key, cs.Metadata, cs.Data); err != nil {
 			return fmt.Errorf("apply remote changeset failed: %w", err)
 		}
 	case store.OpDelete:
