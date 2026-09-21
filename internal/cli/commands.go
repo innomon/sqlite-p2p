@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"crm-sqlite-pear-p2p/internal/config"
+	"crm-sqlite-pear-p2p/internal/crypto"
 	"crm-sqlite-pear-p2p/internal/p2p"
 	"crm-sqlite-pear-p2p/internal/store"
 )
@@ -87,7 +88,10 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 					return err
 				}
 				defer db.Close()
-				t = store.NewChangesetTracker(store.NewRepository(db))
+				keys, _ := crypto.NewKeyRegistry(db)
+				repo := store.NewRepository(db)
+				repo.SetKeyRegistry(keys)
+				t = store.NewChangesetTracker(repo)
 			}
 
 			key, err := store.FormatCustomerKey(args[0])
@@ -134,7 +138,9 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 				return err
 			}
 			defer db.Close()
+			keys, _ := crypto.NewKeyRegistry(db)
 			repo := store.NewRepository(db)
+			repo.SetKeyRegistry(keys)
 
 			rec, err := repo.Get(ctx, key)
 			if err != nil {
@@ -151,6 +157,47 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 	))
 
 	customerCmd.AddSubcommand(cliSubcommand(
+		"delete",
+		"Delete customer record and purge symmetric key (crypto-shredding): customer delete <phone_or_key>",
+		"crm-peer customer delete <phone_or_key>",
+		func(ctx context.Context, args []string) error {
+			if len(args) < 1 {
+				return fmt.Errorf("usage: crm-peer customer delete <phone_or_key>")
+			}
+
+			target := args[0]
+			key := target
+			if !strings.HasPrefix(target, store.CustomerNamespace+":") {
+				var err error
+				key, err = store.FormatCustomerKey(target)
+				if err != nil {
+					return err
+				}
+			}
+
+			t := tracker
+			if t == nil {
+				db, err := store.OpenDB(cfg.DBPath, cfg.EnableWAL)
+				if err != nil {
+					return err
+				}
+				defer db.Close()
+				keys, _ := crypto.NewKeyRegistry(db)
+				repo := store.NewRepository(db)
+				repo.SetKeyRegistry(keys)
+				t = store.NewChangesetTracker(repo)
+			}
+
+			if err := t.Delete(ctx, key); err != nil {
+				return err
+			}
+
+			fmt.Fprintf(root.Stdout, "Deleted customer record and purged key (crypto-shredded):\n  Key: %s\n", key)
+			return nil
+		},
+	))
+
+	customerCmd.AddSubcommand(cliSubcommand(
 		"list",
 		"List customer records: customer list [limit] [offset]",
 		"crm-peer customer list [limit] [offset]",
@@ -160,7 +207,9 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 				return err
 			}
 			defer db.Close()
+			keys, _ := crypto.NewKeyRegistry(db)
 			repo := store.NewRepository(db)
+			repo.SetKeyRegistry(keys)
 
 			count, err := repo.Count(ctx, store.CustomerNamespace)
 			if err != nil {
@@ -180,7 +229,52 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 		},
 	))
 
+	// keygen handler
+	keygenHandler := func(ctx context.Context, args []string) error {
+		if len(args) < 1 {
+			return fmt.Errorf("usage: crm-peer keygen <phone_or_key>")
+		}
+
+		target := args[0]
+		key := target
+		if !strings.HasPrefix(target, store.CustomerNamespace+":") {
+			var err error
+			key, err = store.FormatCustomerKey(target)
+			if err != nil {
+				return err
+			}
+		}
+
+		db, err := store.OpenDB(cfg.DBPath, cfg.EnableWAL)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+
+		keys, err := crypto.NewKeyRegistry(db)
+		if err != nil {
+			return err
+		}
+
+		keyBytes, err := keys.GetOrCreateKey(key)
+		if err != nil {
+			return fmt.Errorf("failed to generate/retrieve key: %w", err)
+		}
+
+		fmt.Fprintf(root.Stdout, "Generated symmetric key for:\n  Key ID:     %s\n  Bytes:      %d bytes (AES-256)\n", key, len(keyBytes))
+		return nil
+	}
+
+	keygenCmd := cliSubcommand(
+		"keygen",
+		"Generate or retrieve symmetric encryption key for a customer: keygen <phone_or_key>",
+		"crm-peer keygen <phone_or_key>",
+		keygenHandler,
+	)
+
+	customerCmd.AddSubcommand(keygenCmd)
 	root.AddSubcommand(customerCmd)
+	root.AddSubcommand(keygenCmd)
 
 	// peer command
 	peerCmd := NewCommand("peer", "Inspect P2P swarm and peer connections")
