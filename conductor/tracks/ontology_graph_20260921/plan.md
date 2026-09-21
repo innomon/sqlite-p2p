@@ -22,11 +22,11 @@
 
 ---
 
-## Phase 3: CLI Query Subcommands & End-to-End Verification
+## Phase 3: CLI Query Subcommands & End-to-End Verification [checkpoint: 3d2246f]
 - [x] Task: Implement CLI `query` command group [87f4588]
     - [x] Write Tests: CLI tests for `crm-peer query graph` and `crm-peer query nodes`
     - [x] Implement: Subcommand handlers in `internal/cli/commands.go`
 - [x] Task: End-to-end Markdown ingestion and graph traversal verification [a77c634]
     - [x] Write Tests: Integration test creating Markdown logs, observing background ingestion, and querying traversals via CLI
     - [x] Implement: Test suite in `tests/ontology_graph_test.go`
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: CLI Query Subcommands & End-to-End Verification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: CLI Query Subcommands & End-to-End Verification' (Protocol in workflow.md)
