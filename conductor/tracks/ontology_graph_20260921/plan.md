@@ -12,9 +12,9 @@
 ---
 
 ## Phase 2: YAML Frontmatter Parser & Filesystem Watcher
-- [ ] Task: Implement YAML frontmatter extractor and schema parser
-    - [ ] Write Tests: Unit tests parsing Markdown files with ontology-graph schemas into typed nodes and edges
-    - [ ] Implement: `internal/ontology/parser.go`
+- [x] Task: Implement YAML frontmatter extractor and schema parser [42783db]
+    - [x] Write Tests: Unit tests parsing Markdown files with ontology-graph schemas into typed nodes and edges
+    - [x] Implement: `internal/ontology/parser.go`
 - [ ] Task: Implement background filesystem watcher
     - [ ] Write Tests: Unit tests verifying `fsnotify` file creation and modification triggers automatic graph upsert
     - [ ] Implement: `internal/ontology/watcher.go`
