@@ -4,7 +4,4 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [x] **Track: Pure Go Pear P2P Swarm & Replication Engine (Hyperswarm discovery, peer sync, changeset replication)**
-  *Link: [./tracks/pear_p2p_engine_20260920/](./tracks/pear_p2p_engine_20260920/)*
-
-
+*(All current specification tracks have been completed and archived to [conductor/archive/](./archive/). Use `/conductor:newTrack` to start a new track.)*
