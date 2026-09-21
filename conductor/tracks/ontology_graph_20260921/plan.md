@@ -4,9 +4,9 @@
 - [x] Task: Create ontology schema tables and Repository methods [b18c32a]
     - [x] Write Tests: Unit tests for inserting, updating, and querying `ontology_nodes` and `ontology_edges`
     - [x] Implement: Tables migration and CRUD queries in `internal/store/ontology.go`
-- [ ] Task: Implement Recursive CTE graph queries
-    - [ ] Write Tests: Unit tests verifying multi-hop pathfinding, neighbor lookups, and cycle handling using SQLite recursive CTEs
-    - [ ] Implement: Graph traversal methods in `internal/store/ontology.go`
+- [x] Task: Implement Recursive CTE graph queries [5a46194]
+    - [x] Write Tests: Unit tests verifying multi-hop pathfinding, neighbor lookups, and cycle handling using SQLite recursive CTEs
+    - [x] Implement: Graph traversal methods in `internal/store/ontology.go`
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: SQLite Ontology Schema & Recursive CTE Graph Traversal' (Protocol in workflow.md)
 
 ---
