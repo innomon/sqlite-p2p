@@ -23,14 +23,14 @@
     - [x] Implement customer tool handlers in `internal/mcp/customer_tools.go` integrating `store.Repository`, `crypto.KeyRegistry`, and `store.ChangesetTracker` [828185b]
 - [x] Task: Conductor - User Manual Verification 'Customer Management & Crypto-Shredding MCP Tools' (Protocol in workflow.md) [40903a7]
 
-## Phase 4: Ontology Knowledge Graph & P2P Swarm Observability MCP Tools
+## Phase 4: Ontology Knowledge Graph & P2P Swarm Observability MCP Tools [checkpoint: e399486]
 - [x] Task: Implement Ontology MCP Tool Handlers (TDD) [841642d]
     - [x] Write unit tests in `internal/mcp/ontology_tools_test.go` for `crm_ontology_get_node`, `crm_ontology_query_edges`, and `crm_ontology_search` [841642d]
     - [x] Implement ontology tool handlers in `internal/mcp/ontology_tools.go` [841642d]
 - [x] Task: Implement P2P Observability MCP Tool Handlers (TDD) [1eddb61]
     - [x] Write unit tests in `internal/mcp/p2p_tools_test.go` for `crm_p2p_status`, `crm_p2p_peers`, and `crm_p2p_sync` [1eddb61]
     - [x] Implement P2P tool handlers in `internal/mcp/p2p_tools.go` [1eddb61]
-- [ ] Task: Conductor - User Manual Verification 'Ontology Knowledge Graph & P2P Swarm Observability MCP Tools' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Ontology Knowledge Graph & P2P Swarm Observability MCP Tools' (Protocol in workflow.md) [e399486]
 
 ## Phase 5: CLI Subcommand Integration & End-to-End Verification
 - [ ] Task: Wire mcp Subcommand into CLI Registry (TDD)
