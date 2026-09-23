@@ -3,9 +3,9 @@
 ## Phase 1: Dependencies & Core MCP Server Scaffolding
 - [x] Task: Add MCP Go SDK dependency and update project modules [a1e3aa0]
     - [x] Add `github.com/modelcontextprotocol/go-sdk` to `go.mod` and run `go mod tidy` [a1e3aa0]
-- [ ] Task: Implement MCP Server initialization and dual-transport runtime (TDD)
-    - [ ] Write unit test for MCP server lifecycle, options, and transport initialization (`internal/mcp/server_test.go`)
-    - [ ] Implement `Server` struct supporting `stdio` and `sse` transports with safe log routing in `internal/mcp/server.go`
+- [x] Task: Implement MCP Server initialization and dual-transport runtime (TDD) [7b1d14b]
+    - [x] Write unit test for MCP server lifecycle, options, and transport initialization (`internal/mcp/server_test.go`) [7b1d14b]
+    - [x] Implement `Server` struct supporting `stdio` and `sse` transports with safe log routing in `internal/mcp/server.go` [7b1d14b]
 - [ ] Task: Conductor - User Manual Verification 'Dependencies & Core MCP Server Scaffolding' (Protocol in workflow.md)
 
 ## Phase 2: Schema Registry Store Extension & MCP Tools
