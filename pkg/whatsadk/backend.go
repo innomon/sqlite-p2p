@@ -1,13 +1,11 @@
 package whatsadk
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"crm-sqlite-pear-p2p/internal/p2p"
 	"crm-sqlite-pear-p2p/internal/store"
@@ -165,36 +163,3 @@ func (b *Backend) Close() error {
 	return nil
 }
 
-// --- Placeholder methods for StoreBackend interface (to be implemented in following phases) ---
-
-func (b *Backend) EnqueueCommand(ctx context.Context, cmd string, payload interface{}) (int64, error) {
-	return 0, errors.New("not implemented")
-}
-
-func (b *Backend) UpdateCommandStatus(ctx context.Context, id int64, status string, result interface{}) error {
-	return errors.New("not implemented")
-}
-
-func (b *Backend) PollPendingCommands(ctx context.Context) ([]Command, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (b *Backend) WaitForCommand(ctx context.Context, id int64, timeout time.Duration) (*Command, error) {
-	return nil, errors.New("not implemented")
-}
-
-
-
-
-
-func (b *Backend) GetAllCommands(ctx context.Context) ([]Command, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (b *Backend) PutCommand(ctx context.Context, cmd Command) error {
-	return errors.New("not implemented")
-}
-
-func (b *Backend) ResetSequence(ctx context.Context) error {
-	return errors.New("not implemented")
-}
