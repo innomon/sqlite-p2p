@@ -144,5 +144,6 @@ func (s *Server) runSSEServer(ctx context.Context) error {
 func (s *Server) registerAllTools() {
 	if s.opts.Repo != nil {
 		RegisterSchemaTools(s.mcpServer, s.opts.Repo)
+		RegisterCustomerTools(s.mcpServer, s.opts.Repo, s.opts.KeyReg, s.opts.Tracker)
 	}
 }
