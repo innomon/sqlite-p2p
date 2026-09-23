@@ -33,11 +33,17 @@ Implement the whatsadk `storeBackend` interface in a public, embeddable package 
 - **SQLite Views for QueryFilesys Compatibility**:
   - Automatically create or initialize a SQLite View `filesys` over `crm_store` so that whatsadk's raw SQL queries (`SELECT ... FROM filesys WHERE ...`) execute natively in SQLite with zero CGO.
 
-### 2.3 Decentralized P2P Replication
+### 2.3 Media Handling (Images, Video, Voice)
+- **Binary Media Payloads (`content []byte`)**: Images (JPEG, PNG, WebP), audio/voice notes (OGG/Opus, WAV), and video (MP4) are persisted directly as raw binary BLOBs in the SQLite `crm_store.data` column. Modern SQLite natively handles BLOBs up to 2GB with high performance.
+- **MIME & Metadata Attributes (`metadata`)**: Media ingestion (`PutFile`) stores a JSON descriptor in `crm_store.metadata` containing `mime_type` (e.g. `image/jpeg`, `audio/ogg`, `video/mp4`), timestamps, and contextual headers (`is_from_me`, message references, sender JID).
+- **Zero-Bloat Chat Log Querying**: In `GetFilesysLogs` and `GetLatestGlobalMessages`, a conditional SQL projection (`CASE WHEN (metadata->>'mime_type' = 'text/plain') THEN content ELSE NULL END`) omits large binary media payloads during routine message queries. Media content is loaded on demand when consumers invoke `GetFile(ctx, path)`.
+- **P2P Media Streaming & Crypto-Shredding**: Media BLOBs are replicated over peer swarms using Hypercore append-only feeds. When per-user cryptographic shredding is configured, media payloads are AES-256-GCM encrypted, allowing instant irrevocable shredding of all media associated with deleted contacts across all swarm peers.
+
+### 2.4 Decentralized P2P Replication
 - Mutations on whatsadk entities trigger SQLite Session API changeset tracking via `store.ChangesetTracker`.
 - Changesets are replicated across peer nodes over the 32-byte Hyperswarm cluster topic via pure Go Autobase and Hypercore feeds.
 
-### 2.4 Integration Specification (`docs/whatsadk_integration_spec.md`)
+### 2.5 Integration Specification (`docs/whatsadk_integration_spec.md`)
 - Create a comprehensive implementation spec for the `whatsadk` workspace:
   - Module import: replace directive or module require for `crm-sqlite-pear-p2p`.
   - URI / DSN schema: `pear://<path>?swarm_topic=<hex>&wal=true` or `sqlite-p2p://<path>`.
