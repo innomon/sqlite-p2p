@@ -184,21 +184,7 @@ func (b *Backend) WaitForCommand(ctx context.Context, id int64, timeout time.Dur
 }
 
 
-func (b *Backend) IsBlacklisted(ctx context.Context, phone string) (bool, error) {
-	return false, errors.New("not implemented")
-}
 
-func (b *Backend) AddBlacklist(ctx context.Context, phone, reason string) error {
-	return errors.New("not implemented")
-}
-
-func (b *Backend) RemoveBlacklist(ctx context.Context, phone string) error {
-	return errors.New("not implemented")
-}
-
-func (b *Backend) ListBlacklist(ctx context.Context) ([]BlacklistedNumber, error) {
-	return nil, errors.New("not implemented")
-}
 
 
 func (b *Backend) GetAllCommands(ctx context.Context) ([]Command, error) {
