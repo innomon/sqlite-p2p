@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	"crm-sqlite-pear-p2p/internal/config"
 	"crm-sqlite-pear-p2p/internal/crypto"
+	crmmcp "crm-sqlite-pear-p2p/internal/mcp"
 	"crm-sqlite-pear-p2p/internal/p2p"
 	"crm-sqlite-pear-p2p/internal/store"
 )
@@ -456,6 +458,71 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 	)
 	root.AddSubcommand(startCmd)
 
+	// mcp command
+	mcpCmd := cliSubcommand(
+		"mcp",
+		"Start the CRM Model Context Protocol (MCP) server: mcp [--transport=stdio|sse] [--host=127.0.0.1] [--port=8083] [--path=/mcp] [--dry-run]",
+		"crm-peer mcp [--transport=stdio|sse] [--host=127.0.0.1] [--port=8083] [--path=/mcp] [--dry-run]",
+		func(ctx context.Context, args []string) error {
+			transport := "stdio"
+			if envT := os.Getenv("CRM_MCP_TRANSPORT"); envT != "" {
+				transport = envT
+			}
+			host := "127.0.0.1"
+			if envH := os.Getenv("CRM_MCP_SSE_HOST"); envH != "" {
+				host = envH
+			}
+			port := "8083"
+			if envP := os.Getenv("CRM_MCP_SSE_PORT"); envP != "" {
+				port = envP
+			}
+			path := "/mcp"
+			if envPath := os.Getenv("CRM_MCP_SSE_PATH"); envPath != "" {
+				path = envPath
+			}
+			dryRun := false
+
+			for _, arg := range args {
+				if strings.HasPrefix(arg, "--transport=") {
+					transport = strings.TrimPrefix(arg, "--transport=")
+				} else if strings.HasPrefix(arg, "--host=") {
+					host = strings.TrimPrefix(arg, "--host=")
+				} else if strings.HasPrefix(arg, "--port=") {
+					port = strings.TrimPrefix(arg, "--port=")
+				} else if strings.HasPrefix(arg, "--path=") {
+					path = strings.TrimPrefix(arg, "--path=")
+				} else if arg == "--dry-run" {
+					dryRun = true
+				}
+			}
+
+			fmt.Fprintf(root.Stdout, "Starting CRM MCP server (transport=%s, host=%s, port=%s, path=%s)...\n", transport, host, port, path)
+			if dryRun {
+				return nil
+			}
+
+			mcpOpts := crmmcp.ServerOptions{
+				Version:   version,
+				Transport: transport,
+				Host:      host,
+				Port:      port,
+				Path:      path,
+				DBPath:    cfg.DBPath,
+				EnableWAL: cfg.EnableWAL,
+				Engine:    engine,
+				Swarm:     swarm,
+				Tracker:   tracker,
+			}
+
+			srv, err := crmmcp.NewServer(mcpOpts)
+			if err != nil {
+				return fmt.Errorf("failed to initialize MCP server: %w", err)
+			}
+
+			return srv.Run(ctx)
+		},
+	)
+	root.AddSubcommand(mcpCmd)
 
 	return root
 }
