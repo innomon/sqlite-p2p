@@ -142,5 +142,7 @@ func (s *Server) runSSEServer(ctx context.Context) error {
 }
 
 func (s *Server) registerAllTools() {
-	// Tool registrations will be populated in respective tool files
+	if s.opts.Repo != nil {
+		RegisterSchemaTools(s.mcpServer, s.opts.Repo)
+	}
 }
