@@ -27,9 +27,9 @@
 - [x] Task: Conductor - User Manual Verification 'Contacts & Blacklist Management' (Protocol in workflow.md) [751c7da]
 
 ## Phase 4: Command Queue & P2P Replication Verification
-- [ ] Task: Implement Command queue operations (TDD)
-    - [ ] Write unit tests for `EnqueueCommand`, `UpdateCommandStatus`, `PollPendingCommands`, `WaitForCommand`, `PutCommand`, `GetAllCommands`, `ResetSequence` in `pkg/whatsadk/command_test.go`
-    - [ ] Implement command queue methods in `pkg/whatsadk/command.go`
+- [x] Task: Implement Command queue operations (TDD) [f0cb9dd]
+    - [x] Write unit tests for `EnqueueCommand`, `UpdateCommandStatus`, `PollPendingCommands`, `WaitForCommand`, `PutCommand`, `GetAllCommands`, `ResetSequence` in `pkg/whatsadk/command_test.go` [f0cb9dd]
+    - [x] Implement command queue methods in `pkg/whatsadk/command.go` [f0cb9dd]
 - [ ] Task: Verify P2P Changeset Replication across peer nodes (TDD)
     - [ ] Write integration test verifying multi-peer replication of whatsadk mutations in `pkg/whatsadk/replication_test.go`
     - [ ] Ensure ChangesetTracker intercepts whatsadk entity writes and broadcasts changesets
