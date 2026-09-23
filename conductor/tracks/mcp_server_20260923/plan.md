@@ -8,14 +8,14 @@
     - [x] Implement `Server` struct supporting `stdio` and `sse` transports with safe log routing in `internal/mcp/server.go` [7b1d14b]
 - [x] Task: Conductor - User Manual Verification 'Dependencies & Core MCP Server Scaffolding' (Protocol in workflow.md) [6585a38]
 
-## Phase 2: Schema Registry Store Extension & MCP Tools
+## Phase 2: Schema Registry Store Extension & MCP Tools [checkpoint: ae88c55]
 - [x] Task: Implement Schema store repository methods (TDD) [8082e17]
     - [x] Write unit tests in `internal/store/schema_test.go` for PutSchema, GetSchema, ListSchemas, DeleteSchema under `org.schema:<URI>` [8082e17]
     - [x] Implement schema methods in `internal/store/schema.go` storing JSON schema metadata and markdown doc payload [8082e17]
 - [x] Task: Implement Schema MCP Tool Handlers (TDD) [d5b944a]
     - [x] Write unit tests in `internal/mcp/schema_tools_test.go` for `crm_schema_set`, `crm_schema_get`, `crm_schema_list`, and `crm_schema_delete` [d5b944a]
     - [x] Implement schema tool handlers and JSON schema parameter definitions in `internal/mcp/schema_tools.go` [d5b944a]
-- [ ] Task: Conductor - User Manual Verification 'Schema Registry Store Extension & MCP Tools' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Schema Registry Store Extension & MCP Tools' (Protocol in workflow.md) [ae88c55]
 
 ## Phase 3: Customer Management & Crypto-Shredding MCP Tools
 - [ ] Task: Implement Customer MCP Tool Handlers (TDD)
