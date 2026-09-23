@@ -1,8 +1,8 @@
 # Implementation Plan - Track: whatsadk storeBackend Implementation & Integration (`whatsadk_store_backend`)
 
 ## Phase 1: Models, Contracts & Backend Core Initialization
-- [ ] Task: Define whatsadk models and interface contracts
-    - [ ] Create `pkg/whatsadk/types.go` with `Command`, `Contact`, `FileEntry`, `BlacklistedNumber`, and `storeBackend` interface contract
+- [x] Task: Define whatsadk models and interface contracts [5809117]
+    - [x] Create `pkg/whatsadk/types.go` with `Command`, `Contact`, `FileEntry`, `BlacklistedNumber`, and `storeBackend` interface contract [5809117]
 - [ ] Task: Implement Backend initialization and view scaffolding (TDD)
     - [ ] Write unit test for Backend initialization, DB connection, and filesys view creation in `pkg/whatsadk/backend_test.go`
     - [ ] Implement `NewBackend` and `Close` in `pkg/whatsadk/backend.go`
