@@ -36,7 +36,7 @@
 - [x] Task: Wire mcp Subcommand into CLI Registry (TDD) [f0abea2]
     - [x] Write CLI command tests in `internal/cli/mcp_test.go` verifying `crm-peer mcp` flag parsing and execution [f0abea2]
     - [x] Implement `mcp` subcommand in `internal/cli/commands.go` connecting configuration, store, and MCP server [f0abea2]
-- [ ] Task: End-to-end verification and quality gate checks
-    - [ ] Run full test suite with coverage report (`go test -v -cover ./...`) and verify >80% code coverage
-    - [ ] Document MCP server usage and tool schemas in project documentation
+- [x] Task: End-to-end verification and quality gate checks [0c32096]
+    - [x] Run full test suite with coverage report (`go test -v -cover ./...`) and verify >80% code coverage [0c32096]
+    - [x] Document MCP server usage and tool schemas in project documentation [0c32096]
 - [ ] Task: Conductor - User Manual Verification 'CLI Subcommand Integration & End-to-End Verification' (Protocol in workflow.md)
