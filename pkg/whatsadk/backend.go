@@ -183,9 +183,6 @@ func (b *Backend) WaitForCommand(ctx context.Context, id int64, timeout time.Dur
 	return nil, errors.New("not implemented")
 }
 
-func (b *Backend) PutFile(ctx context.Context, path string, metadata interface{}, content []byte, timestamp time.Time) error {
-	return errors.New("not implemented")
-}
 
 func (b *Backend) IsBlacklisted(ctx context.Context, phone string) (bool, error) {
 	return false, errors.New("not implemented")
@@ -219,18 +216,6 @@ func (b *Backend) QueryFilesys(ctx context.Context, query string, args ...interf
 	return nil, errors.New("not implemented")
 }
 
-func (b *Backend) GetFile(ctx context.Context, path string) (*FileEntry, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (b *Backend) DeleteFile(ctx context.Context, path string) error {
-	return errors.New("not implemented")
-}
-
-func (b *Backend) ListFiles(ctx context.Context, prefix string, limit int) ([]FileEntry, error) {
-	return nil, errors.New("not implemented")
-}
-
 func (b *Backend) GetAllContacts(ctx context.Context) ([]Contact, error) {
 	return nil, errors.New("not implemented")
 }
@@ -245,10 +230,6 @@ func (b *Backend) GetAllCommands(ctx context.Context) ([]Command, error) {
 
 func (b *Backend) PutCommand(ctx context.Context, cmd Command) error {
 	return errors.New("not implemented")
-}
-
-func (b *Backend) GetAllFiles(ctx context.Context) ([]FileEntry, error) {
-	return nil, errors.New("not implemented")
 }
 
 func (b *Backend) ResetSequence(ctx context.Context) error {
