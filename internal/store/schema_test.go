@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/store"
 )
 
 func setupTestSchemaDB(t *testing.T) (*store.Repository, func()) {

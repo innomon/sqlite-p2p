@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/store"
 )
 
 func TestOntologyNodeCRUD(t *testing.T) {

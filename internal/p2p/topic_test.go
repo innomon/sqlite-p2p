@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/p2p"
+	"sqlite-p2p/internal/p2p"
 
 	"go-pear/pkg/hypercore"
 )

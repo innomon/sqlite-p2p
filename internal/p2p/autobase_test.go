@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"crm-sqlite-pear-p2p/internal/p2p"
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/p2p"
+	"sqlite-p2p/internal/store"
 )
 
 func TestAutobaseLinearization(t *testing.T) {

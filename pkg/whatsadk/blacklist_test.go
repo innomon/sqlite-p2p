@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/store"
 )
 
 func TestBlacklist_Operations(t *testing.T) {

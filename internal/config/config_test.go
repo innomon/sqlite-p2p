@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/config"
+	"sqlite-p2p/internal/config"
 )
 
 func TestDefaultConfig(t *testing.T) {

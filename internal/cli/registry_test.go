@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/cli"
+	"sqlite-p2p/internal/cli"
 )
 
 func TestCommandRegistrationAndDispatch(t *testing.T) {

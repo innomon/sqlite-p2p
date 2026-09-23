@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/cli"
-	"crm-sqlite-pear-p2p/internal/config"
+	"sqlite-p2p/internal/cli"
+	"sqlite-p2p/internal/config"
 )
 
 func TestBuildRootCommand(t *testing.T) {

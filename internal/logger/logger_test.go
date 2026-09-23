@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/logger"
+	"sqlite-p2p/internal/logger"
 )
 
 func TestStructuredJSONLogger(t *testing.T) {

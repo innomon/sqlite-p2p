@@ -8,7 +8,7 @@ import (
 	"net"
 	"sync"
 
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/store"
 )
 
 // ChangesetHandler is invoked when a remote changeset is received over replication.

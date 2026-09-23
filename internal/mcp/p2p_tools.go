@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"crm-sqlite-pear-p2p/internal/p2p"
+	"sqlite-p2p/internal/p2p"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

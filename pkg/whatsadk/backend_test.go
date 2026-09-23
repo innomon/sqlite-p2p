@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/store"
 )
 
 func TestNewBackend_Memory(t *testing.T) {

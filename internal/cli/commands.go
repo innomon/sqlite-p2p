@@ -8,11 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"crm-sqlite-pear-p2p/internal/config"
-	"crm-sqlite-pear-p2p/internal/crypto"
-	crmmcp "crm-sqlite-pear-p2p/internal/mcp"
-	"crm-sqlite-pear-p2p/internal/p2p"
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/config"
+	"sqlite-p2p/internal/crypto"
+	crmmcp "sqlite-p2p/internal/mcp"
+	"sqlite-p2p/internal/p2p"
+	"sqlite-p2p/internal/store"
 )
 
 // BuildRootCommand constructs the top-level CLI command tree with core subcommands.

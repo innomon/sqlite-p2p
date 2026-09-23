@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/crypto"
+	"sqlite-p2p/internal/crypto"
 	_ "modernc.org/sqlite"
 )
 

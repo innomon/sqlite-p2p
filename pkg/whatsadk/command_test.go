@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/store"
 )
 
 func TestCommands_Lifecycle(t *testing.T) {

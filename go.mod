@@ -1,4 +1,4 @@
-module crm-sqlite-pear-p2p
+module sqlite-p2p
 
 go 1.25.6
 

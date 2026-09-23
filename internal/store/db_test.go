@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/store"
 )
 
 func TestOpenDBWithWAL(t *testing.T) {

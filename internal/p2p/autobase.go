@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/store"
 
 	"go-pear/pkg/autobase"
 	"go-pear/pkg/hypercore"

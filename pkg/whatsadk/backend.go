@@ -7,8 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"crm-sqlite-pear-p2p/internal/p2p"
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/p2p"
+	"sqlite-p2p/internal/store"
 )
 
 // DDL for SQLite views projecting unified crm_store into whatsadk compatible schemas.

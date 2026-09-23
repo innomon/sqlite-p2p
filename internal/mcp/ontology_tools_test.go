@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/store"
 )
 
 func TestOntologyTools_Lifecycle(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/ontology"
+	"sqlite-p2p/internal/ontology"
 )
 
 func TestParseMarkdown_ValidOntology(t *testing.T) {

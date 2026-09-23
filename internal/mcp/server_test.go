@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"crm-sqlite-pear-p2p/internal/crypto"
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/crypto"
+	"sqlite-p2p/internal/store"
 )
 
 func setupTestDB(t *testing.T) (*store.Repository, *crypto.KeyRegistry, *store.ChangesetTracker, func()) {

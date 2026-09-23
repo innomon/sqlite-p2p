@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

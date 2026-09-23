@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"crm-sqlite-pear-p2p/internal/crypto"
-	"crm-sqlite-pear-p2p/internal/p2p"
-	"crm-sqlite-pear-p2p/internal/store"
+	"sqlite-p2p/internal/crypto"
+	"sqlite-p2p/internal/p2p"
+	"sqlite-p2p/internal/store"
 )
 
 func TestMultiNodeCryptoShreddingE2E(t *testing.T) {

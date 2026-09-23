@@ -1,11 +1,11 @@
 # Specification: whatsadk storeBackend Implementation & Integration (`whatsadk_store_backend`)
 
 ## 1. Overview
-Implement the whatsadk `storeBackend` interface in a public, embeddable package (`pkg/whatsadk`) backed by the Pure Go SQLite `crm_store` table and Autobase P2P replication engine. This allows `whatsadk` (`/home/innomon/B204-zone/orez/adk/whatsadk`) to embed `crm-sqlite-pear-p2p` as a serverless, local-first, peer-to-peer storage backend alternative to PostgreSQL and SurrealDB. In addition, create a detailed integration specification in `docs/whatsadk_integration_spec.md` for coding agents working in the `whatsadk` workspace.
+Implement the whatsadk `storeBackend` interface in a public, embeddable package (`pkg/whatsadk`) backed by the Pure Go SQLite `crm_store` table and Autobase P2P replication engine. This allows `whatsadk` (`/home/innomon/B204-zone/orez/adk/whatsadk`) to embed `sqlite-p2p` as a serverless, local-first, peer-to-peer storage backend alternative to PostgreSQL and SurrealDB. In addition, create a detailed integration specification in `docs/whatsadk_integration_spec.md` for coding agents working in the `whatsadk` workspace.
 
 ## 2. Functional Requirements
 ### 2.1 Package Architecture (`pkg/whatsadk`)
-- Exported package `crm-sqlite-pear-p2p/pkg/whatsadk`.
+- Exported package `sqlite-p2p/pkg/whatsadk`.
 - Models mirroring whatsadk contracts:
   - `Command`: ID, Command, Payload, Status, Result, CreatedAt, UpdatedAt.
   - `Contact`: OurJID, TheirJID, FullName, ShortName, PushName, BusinessName.
@@ -45,7 +45,7 @@ Implement the whatsadk `storeBackend` interface in a public, embeddable package 
 
 ### 2.5 Integration Specification (`docs/whatsadk_integration_spec.md`)
 - Create a comprehensive implementation spec for the `whatsadk` workspace:
-  - Module import: replace directive or module require for `crm-sqlite-pear-p2p`.
+  - Module import: replace directive or module require for `sqlite-p2p`.
   - URI / DSN schema: `pear://<path>?swarm_topic=<hex>&wal=true` or `sqlite-p2p://<path>`.
   - Step-by-step code modifications for `whatsadk/internal/store/store.go` to register and instantiate the backend.
 

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"crm-sqlite-pear-p2p/internal/crypto"
+	"sqlite-p2p/internal/crypto"
 )
 
 // ErrNotFound is returned when a requested key does not exist in crm_store.

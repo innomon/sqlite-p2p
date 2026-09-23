@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"crm-sqlite-pear-p2p/internal/crypto"
+	"sqlite-p2p/internal/crypto"
 )
 
 func TestGenerateKey(t *testing.T) {

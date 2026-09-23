@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"crm-sqlite-pear-p2p/internal/cli"
-	"crm-sqlite-pear-p2p/internal/config"
-	"crm-sqlite-pear-p2p/internal/logger"
+	"sqlite-p2p/internal/cli"
+	"sqlite-p2p/internal/config"
+	"sqlite-p2p/internal/logger"
 )
 
 // Version represents the application version.
