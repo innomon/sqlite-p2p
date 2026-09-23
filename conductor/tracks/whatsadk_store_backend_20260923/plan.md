@@ -24,7 +24,7 @@
 - [x] Task: Implement Blacklist operations (TDD) [2562a47]
     - [x] Write unit tests for `AddBlacklist`, `RemoveBlacklist`, `IsBlacklisted`, `ListBlacklist` in `pkg/whatsadk/blacklist_test.go` [2562a47]
     - [x] Implement `AddBlacklist`, `RemoveBlacklist`, `IsBlacklisted`, `ListBlacklist` in `pkg/whatsadk/blacklist.go` [2562a47]
-- [ ] Task: Conductor - User Manual Verification 'Contacts & Blacklist Management' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Contacts & Blacklist Management' (Protocol in workflow.md) [751c7da]
 
 ## Phase 4: Command Queue & P2P Replication Verification
 - [ ] Task: Implement Command queue operations (TDD)
