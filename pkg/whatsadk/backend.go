@@ -200,18 +200,6 @@ func (b *Backend) ListBlacklist(ctx context.Context) ([]BlacklistedNumber, error
 	return nil, errors.New("not implemented")
 }
 
-func (b *Backend) ListContacts(ctx context.Context, query string) ([]Contact, error) {
-	return nil, errors.New("not implemented")
-}
-
-
-func (b *Backend) GetAllContacts(ctx context.Context) ([]Contact, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (b *Backend) PutContact(ctx context.Context, contact Contact) error {
-	return errors.New("not implemented")
-}
 
 func (b *Backend) GetAllCommands(ctx context.Context) ([]Command, error) {
 	return nil, errors.New("not implemented")
