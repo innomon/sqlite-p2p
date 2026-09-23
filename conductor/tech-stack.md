@@ -31,3 +31,8 @@
 ## 7. Multimodal & File System Ingestion
 - **File System Watcher**: `github.com/fsnotify/fsnotify` for monitoring markdown interaction logs.
 - **Frontmatter Parser**: YAML frontmatter extraction into SQLite graph entities (`ontology_nodes`, `ontology_edges`).
+
+## 8. Model Context Protocol (MCP) Integration
+- **MCP Framework**: Official Go MCP SDK (`github.com/modelcontextprotocol/go-sdk/mcp`).
+- **Transports**: Dual transport support with standard I/O (`stdio`) as default for subprocess AI agents, and streamable HTTP (`sse`) for network access.
+- **Tool Contracts**: Auto-generated JSON Schema parameter bindings for customer CRUD, record schema registry (`org.schema:<URI>`), ontology graph exploration, and P2P swarm metrics.
