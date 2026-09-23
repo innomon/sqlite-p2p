@@ -33,9 +33,9 @@
 - [x] Task: Conductor - User Manual Verification 'Ontology Knowledge Graph & P2P Swarm Observability MCP Tools' (Protocol in workflow.md) [e399486]
 
 ## Phase 5: CLI Subcommand Integration & End-to-End Verification
-- [ ] Task: Wire mcp Subcommand into CLI Registry (TDD)
-    - [ ] Write CLI command tests in `internal/cli/mcp_test.go` verifying `crm-peer mcp` flag parsing and execution
-    - [ ] Implement `mcp` subcommand in `internal/cli/commands.go` connecting configuration, store, and MCP server
+- [x] Task: Wire mcp Subcommand into CLI Registry (TDD) [f0abea2]
+    - [x] Write CLI command tests in `internal/cli/mcp_test.go` verifying `crm-peer mcp` flag parsing and execution [f0abea2]
+    - [x] Implement `mcp` subcommand in `internal/cli/commands.go` connecting configuration, store, and MCP server [f0abea2]
 - [ ] Task: End-to-end verification and quality gate checks
     - [ ] Run full test suite with coverage report (`go test -v -cover ./...`) and verify >80% code coverage
     - [ ] Document MCP server usage and tool schemas in project documentation
