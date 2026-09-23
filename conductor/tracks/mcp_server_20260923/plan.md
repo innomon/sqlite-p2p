@@ -9,9 +9,9 @@
 - [x] Task: Conductor - User Manual Verification 'Dependencies & Core MCP Server Scaffolding' (Protocol in workflow.md) [6585a38]
 
 ## Phase 2: Schema Registry Store Extension & MCP Tools
-- [ ] Task: Implement Schema store repository methods (TDD)
-    - [ ] Write unit tests in `internal/store/schema_test.go` for PutSchema, GetSchema, ListSchemas, DeleteSchema under `org.schema:<URI>`
-    - [ ] Implement schema methods in `internal/store/schema.go` storing JSON schema metadata and markdown doc payload
+- [x] Task: Implement Schema store repository methods (TDD) [8082e17]
+    - [x] Write unit tests in `internal/store/schema_test.go` for PutSchema, GetSchema, ListSchemas, DeleteSchema under `org.schema:<URI>` [8082e17]
+    - [x] Implement schema methods in `internal/store/schema.go` storing JSON schema metadata and markdown doc payload [8082e17]
 - [ ] Task: Implement Schema MCP Tool Handlers (TDD)
     - [ ] Write unit tests in `internal/mcp/schema_tools_test.go` for `crm_schema_set`, `crm_schema_get`, `crm_schema_list`, and `crm_schema_delete`
     - [ ] Implement schema tool handlers and JSON schema parameter definitions in `internal/mcp/schema_tools.go`
