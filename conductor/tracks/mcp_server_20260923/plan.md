@@ -1,12 +1,12 @@
 # Implementation Plan - Track: MCP Server for Distributed CRM (`mcp_server`)
 
-## Phase 1: Dependencies & Core MCP Server Scaffolding
+## Phase 1: Dependencies & Core MCP Server Scaffolding [checkpoint: 6585a38]
 - [x] Task: Add MCP Go SDK dependency and update project modules [a1e3aa0]
     - [x] Add `github.com/modelcontextprotocol/go-sdk` to `go.mod` and run `go mod tidy` [a1e3aa0]
 - [x] Task: Implement MCP Server initialization and dual-transport runtime (TDD) [7b1d14b]
     - [x] Write unit test for MCP server lifecycle, options, and transport initialization (`internal/mcp/server_test.go`) [7b1d14b]
     - [x] Implement `Server` struct supporting `stdio` and `sse` transports with safe log routing in `internal/mcp/server.go` [7b1d14b]
-- [ ] Task: Conductor - User Manual Verification 'Dependencies & Core MCP Server Scaffolding' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Dependencies & Core MCP Server Scaffolding' (Protocol in workflow.md) [6585a38]
 
 ## Phase 2: Schema Registry Store Extension & MCP Tools
 - [ ] Task: Implement Schema store repository methods (TDD)
