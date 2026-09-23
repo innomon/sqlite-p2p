@@ -18,9 +18,9 @@
 - [x] Task: Conductor - User Manual Verification 'Virtual Filesys Implementation & SQL Query Engine' (Protocol in workflow.md) [93152d7]
 
 ## Phase 3: Contacts & Blacklist Management
-- [ ] Task: Implement Contact operations (TDD)
-    - [ ] Write unit tests for `PutContact`, `ListContacts`, `GetAllContacts` in `pkg/whatsadk/contact_test.go`
-    - [ ] Implement `PutContact`, `ListContacts`, `GetAllContacts` in `pkg/whatsadk/contact.go`
+- [x] Task: Implement Contact operations (TDD) [0af940e]
+    - [x] Write unit tests for `PutContact`, `ListContacts`, `GetAllContacts` in `pkg/whatsadk/contact_test.go` [0af940e]
+    - [x] Implement `PutContact`, `ListContacts`, `GetAllContacts` in `pkg/whatsadk/contact.go` [0af940e]
 - [ ] Task: Implement Blacklist operations (TDD)
     - [ ] Write unit tests for `AddBlacklist`, `RemoveBlacklist`, `IsBlacklisted`, `ListBlacklist` in `pkg/whatsadk/blacklist_test.go`
     - [ ] Implement `AddBlacklist`, `RemoveBlacklist`, `IsBlacklisted`, `ListBlacklist` in `pkg/whatsadk/blacklist.go`
