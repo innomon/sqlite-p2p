@@ -32,11 +32,11 @@
     - [x] Implement P2P tool handlers in `internal/mcp/p2p_tools.go` [1eddb61]
 - [x] Task: Conductor - User Manual Verification 'Ontology Knowledge Graph & P2P Swarm Observability MCP Tools' (Protocol in workflow.md) [e399486]
 
-## Phase 5: CLI Subcommand Integration & End-to-End Verification
+## Phase 5: CLI Subcommand Integration & End-to-End Verification [checkpoint: 56f297b]
 - [x] Task: Wire mcp Subcommand into CLI Registry (TDD) [f0abea2]
     - [x] Write CLI command tests in `internal/cli/mcp_test.go` verifying `crm-peer mcp` flag parsing and execution [f0abea2]
     - [x] Implement `mcp` subcommand in `internal/cli/commands.go` connecting configuration, store, and MCP server [f0abea2]
 - [x] Task: End-to-end verification and quality gate checks [0c32096]
     - [x] Run full test suite with coverage report (`go test -v -cover ./...`) and verify >80% code coverage [0c32096]
     - [x] Document MCP server usage and tool schemas in project documentation [0c32096]
-- [ ] Task: Conductor - User Manual Verification 'CLI Subcommand Integration & End-to-End Verification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'CLI Subcommand Integration & End-to-End Verification' (Protocol in workflow.md) [56f297b]
