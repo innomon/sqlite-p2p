@@ -17,11 +17,11 @@
     - [x] Implement schema tool handlers and JSON schema parameter definitions in `internal/mcp/schema_tools.go` [d5b944a]
 - [x] Task: Conductor - User Manual Verification 'Schema Registry Store Extension & MCP Tools' (Protocol in workflow.md) [ae88c55]
 
-## Phase 3: Customer Management & Crypto-Shredding MCP Tools
+## Phase 3: Customer Management & Crypto-Shredding MCP Tools [checkpoint: 40903a7]
 - [x] Task: Implement Customer MCP Tool Handlers (TDD) [828185b]
     - [x] Write unit tests in `internal/mcp/customer_tools_test.go` for `crm_customer_put`, `crm_customer_get`, `crm_customer_delete`, `crm_customer_shred`, and `crm_customer_list` [828185b]
     - [x] Implement customer tool handlers in `internal/mcp/customer_tools.go` integrating `store.Repository`, `crypto.KeyRegistry`, and `store.ChangesetTracker` [828185b]
-- [ ] Task: Conductor - User Manual Verification 'Customer Management & Crypto-Shredding MCP Tools' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Customer Management & Crypto-Shredding MCP Tools' (Protocol in workflow.md) [40903a7]
 
 ## Phase 4: Ontology Knowledge Graph & P2P Swarm Observability MCP Tools
 - [ ] Task: Implement Ontology MCP Tool Handlers (TDD)
