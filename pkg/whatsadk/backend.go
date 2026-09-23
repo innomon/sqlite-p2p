@@ -204,17 +204,6 @@ func (b *Backend) ListContacts(ctx context.Context, query string) ([]Contact, er
 	return nil, errors.New("not implemented")
 }
 
-func (b *Backend) GetFilesysLogs(ctx context.Context, phone string, limit int) ([]FileEntry, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (b *Backend) GetLatestGlobalMessages(ctx context.Context, limit int) ([]FileEntry, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (b *Backend) QueryFilesys(ctx context.Context, query string, args ...interface{}) ([]map[string]interface{}, error) {
-	return nil, errors.New("not implemented")
-}
 
 func (b *Backend) GetAllContacts(ctx context.Context) ([]Contact, error) {
 	return nil, errors.New("not implemented")
