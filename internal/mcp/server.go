@@ -146,5 +146,6 @@ func (s *Server) registerAllTools() {
 		RegisterSchemaTools(s.mcpServer, s.opts.Repo)
 		RegisterCustomerTools(s.mcpServer, s.opts.Repo, s.opts.KeyReg, s.opts.Tracker)
 		RegisterOntologyTools(s.mcpServer, s.opts.Repo)
+		RegisterP2PTools(s.mcpServer, s.opts, s.opts.Engine, s.opts.Swarm)
 	}
 }
