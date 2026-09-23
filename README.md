@@ -138,6 +138,17 @@ For step-by-step agent harness setup instructions (Goose, Claude Desktop, Cursor
 
 ---
 
+## WhatsaDK Embeddable Storage Backend (`pkg/whatsadk`)
+
+The repository exports a drop-in storage backend package [`pkg/whatsadk`](/pkg/whatsadk) that implements the WhatsaDK `storeBackend` interface. This allows WhatsaDK instances to run completely serverless with local-first, peer-to-peer replicated SQLite storage:
+
+- **Complete Interface Support**: Virtual filesys (`PutFile`, `GetFile`, `ListFiles`, `QueryFilesys`), contacts (`PutContact`, `ListContacts`), blacklist (`AddBlacklist`, `IsBlacklisted`), and command queue (`EnqueueCommand`, `PollPendingCommands`, `WaitForCommand`).
+- **Binary Media & Zero-Bloat Projections**: Media (images, voice, video) is stored as SQLite BLOBs and automatically omitted during chat log scans (`GetFilesysLogs`) to ensure low latency. Content is retrieved on demand via `GetFile`.
+- **Peer-to-Peer Replication**: Every mutation is intercepted by `store.ChangesetTracker` and replicated across distributed nodes via Autobase feeds.
+- **Integration Guide**: See the detailed coding agent integration specification in [docs/whatsadk_integration_spec.md](/docs/whatsadk_integration_spec.md).
+
+---
+
 ## Testing & Quality Gates
 
 Run all automated unit and integration tests with coverage:

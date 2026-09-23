@@ -225,3 +225,25 @@ To adhere to strict zero-dependency and minimal binary footprint rules, the CLI 
 - The CLI command tree is declared with typed handler callbacks (`HandlerFunc`).
 - Flag parsing is executed via custom string token matching (`--transport=`, `--port=`, etc.).
 - The command tree provides deterministic `--help` formatting and fast startup latency ($<5\text{ms}$).
+
+---
+
+## 9. Embeddable Storage Architecture (`pkg/whatsadk`)
+
+The `pkg/whatsadk` package exposes an embeddable adapter implementing the WhatsaDK `storeBackend` interface directly over the unified `crm_store` table and Autobase P2P replication mesh.
+
+### 9.1 Data Projection & SQLite Views
+Rather than requiring separate relational tables, all WhatsaDK entities are partitioned within `crm_store` using key prefixes:
+- `whatsadk:filesys:<path>`
+- `whatsadk:contact:<our_jid>:<their_jid>`
+- `whatsadk:command:<id>`
+- `whatsadk:blacklist:<phone>`
+
+To support raw SQL queries and existing analytical integrations without rewriting queries, SQLite Views (`filesys`, `whatsmeow_contacts`, `whatsmeow_commands`, `blacklisted_numbers`) project JSON attributes into relational columns. Parameter syntax (`$1, $2`) is normalized to SQLite parameter binding (`?`) in `QueryFilesys`.
+
+### 9.2 Binary Media Architecture
+WhatsApp media messages (images, audio notes, video) are ingested via `PutFile` as raw BLOBs in `crm_store.data`, paired with JSON metadata in `crm_store.metadata`. Message logging queries (`GetFilesysLogs` and `GetLatestGlobalMessages`) use conditional projection to exclude binary payloads from list operations, reserving byte retrieval for explicit `GetFile` requests.
+
+### 9.3 Decentralized Changeset Replication
+Every write to WhatsaDK entities automatically flows through `store.ChangesetTracker` or `p2p.ReplicationEngine`, producing binary changesets broadcast across peer swarm nodes. When customer key registries are enabled, media and message payloads are encrypted with AES-256-GCM, enabling cryptographically enforceable GDPR deletion across all nodes.
+
