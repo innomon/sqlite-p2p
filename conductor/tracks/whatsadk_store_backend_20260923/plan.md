@@ -9,9 +9,9 @@
 - [x] Task: Conductor - User Manual Verification 'Models, Contracts & Backend Core Initialization' (Protocol in workflow.md) [e9ef6a0]
 
 ## Phase 2: Virtual Filesys Implementation & SQL Query Engine
-- [ ] Task: Implement Filesys storage operations (TDD)
-    - [ ] Write unit tests for `PutFile`, `GetFile`, `DeleteFile`, `ListFiles`, `GetAllFiles` in `pkg/whatsadk/filesys_test.go`
-    - [ ] Implement `PutFile`, `GetFile`, `DeleteFile`, `ListFiles`, `GetAllFiles` in `pkg/whatsadk/filesys.go`
+- [x] Task: Implement Filesys storage operations (TDD) [b323fdd]
+    - [x] Write unit tests for `PutFile`, `GetFile`, `DeleteFile`, `ListFiles`, `GetAllFiles` in `pkg/whatsadk/filesys_test.go` [b323fdd]
+    - [x] Implement `PutFile`, `GetFile`, `DeleteFile`, `ListFiles`, `GetAllFiles` in `pkg/whatsadk/filesys.go` [b323fdd]
 - [ ] Task: Implement Filesys logging and query operations (TDD)
     - [ ] Write unit tests for `GetFilesysLogs`, `GetLatestGlobalMessages`, `QueryFilesys` in `pkg/whatsadk/query_test.go`
     - [ ] Implement `GetFilesysLogs`, `GetLatestGlobalMessages`, `QueryFilesys` in `pkg/whatsadk/query.go`
