@@ -27,9 +27,9 @@
 - [x] Task: Implement Ontology MCP Tool Handlers (TDD) [841642d]
     - [x] Write unit tests in `internal/mcp/ontology_tools_test.go` for `crm_ontology_get_node`, `crm_ontology_query_edges`, and `crm_ontology_search` [841642d]
     - [x] Implement ontology tool handlers in `internal/mcp/ontology_tools.go` [841642d]
-- [ ] Task: Implement P2P Observability MCP Tool Handlers (TDD)
-    - [ ] Write unit tests in `internal/mcp/p2p_tools_test.go` for `crm_p2p_status`, `crm_p2p_peers`, and `crm_p2p_sync`
-    - [ ] Implement P2P tool handlers in `internal/mcp/p2p_tools.go`
+- [x] Task: Implement P2P Observability MCP Tool Handlers (TDD) [1eddb61]
+    - [x] Write unit tests in `internal/mcp/p2p_tools_test.go` for `crm_p2p_status`, `crm_p2p_peers`, and `crm_p2p_sync` [1eddb61]
+    - [x] Implement P2P tool handlers in `internal/mcp/p2p_tools.go` [1eddb61]
 - [ ] Task: Conductor - User Manual Verification 'Ontology Knowledge Graph & P2P Swarm Observability MCP Tools' (Protocol in workflow.md)
 
 ## Phase 5: CLI Subcommand Integration & End-to-End Verification
