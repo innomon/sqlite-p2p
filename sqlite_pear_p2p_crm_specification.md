@@ -1,6 +1,7 @@
 # Technical Specification: Distributed Multimodal Agentic CRM (SQLite + Pure Go Pear/P2P)
 
 ## 1. Overview & System Goal
+
 This document specifies the architecture, data structures, and implementation guidelines for a distributed, multi-writer, agentic CRM scaling to 100K+ customer records.
 
 The system operates over a peer-to-peer (P2P) network using a **pure Go implementation of the Pear/Holepunch protocol stack** (Hypercore, Hyperswarm, HyperDHT, Autobase). State is decentralized and synchronized across distributed human and agent nodes without central cloud infrastructure or centralized message brokers (e.g., NATS).
@@ -10,11 +11,13 @@ The system operates over a peer-to-peer (P2P) network using a **pure Go implemen
 ## 2. Core Identifiers, Privacy & Security
 
 ### 2.1 Customer Primary Key (Deterministic Pseudonym)
+
 * **Format**: `BASE32(Hash(<Customer Primary Mobile Number>))`
 * **Hashing Algorithm**: SHA-256 (or BLAKE3) strictly evaluated prior to encoding.
 * **Rule**: No cleartext Personal Identifiable Information (PII) such as phone numbers, Aadhaar numbers, or PANs may be stored in cleartext in logs, index keys, or file paths.
 
 ### 2.2 Privacy Compliance & Data Purging (Crypto-Shredding)
+
 * **Payload Encryption**: All customer interactions and PII attributes written to Autobase logs MUST be encrypted with a per-customer symmetric key (`AES-256-GCM`).
 * **Data Expiry / Erasure**: Upon TTL expiry or explicit deletion request, the per-customer symmetric key is deleted/shredded.
 * **Log Retention**: Nodes execute local Hypercore block clearing (`core.Clear(start, end)`) to reclaim disk space while preserving cryptographic hash verification.
@@ -44,12 +47,15 @@ The system uses Command Query Responsibility Segregation (CQRS) to achieve multi
 ```
 
 ### 3.1 Write Model: Pure Go Autobase Log
+
 * Each node appends SQLite Session `changesets` or interaction events to its local Go `hypercore`.
 * **Go Autobase** linearizes inputs from all connected agent cores into a single, deterministically ordered virtual stream using vector clocks.
 
 ### 3.2 Read Model: Local SQLite Database
+
 * Every node continuously consumes the linearized Autobase stream and applies changesets locally via `sqlite3changeset_apply`.
 * **Pragmas Required**:
+
   ```sql
   PRAGMA journal_mode = WAL;
   PRAGMA synchronous = NORMAL;
@@ -57,18 +63,22 @@ The system uses Command Query Responsibility Segregation (CQRS) to achieve multi
   ```
 
 ### 3.3 Shared File System & Ontology Graph
+
 * Interaction logs and unstructured context are saved as Markdown files containing YAML headers.
 * Local nodes parse YAML metadata into a localized SQLite graph table (or in-memory index) using CTEs to support fast graph traversals.
 
 ### 2.1 Write Side (P2P Log Engine)
+
 - Every active node maintains a local, append-only **Hypercore** log.
-- Mutations (INSERT, UPDATE, DELETE) are captured as binary changesets via SQLite's Session API (`sqlite3_session`).
-- **Autobase** linearizes changesets across all writing peers into a deterministic, causally-ordered virtual stream.
+
+* Mutations (INSERT, UPDATE, DELETE) are captured as binary changesets via SQLite's Session API (`sqlite3_session`).
+* **Autobase** linearizes changesets across all writing peers into a deterministic, causally-ordered virtual stream.
 
 ### 2.2 Read Side (Local Materialization)
-- Each node consumes the linearized Autobase stream and applies changesets locally to its embedded `crm.db` using `sqlite3changeset_apply()`.
-- Reads, queries, full-text searches, and graph traversals execute locally against SQLite with $O(1)$ / $O(\log N)$ performance.
 
+- Each node consumes the linearized Autobase stream and applies changesets locally to its embedded `crm.db` using `sqlite3changeset_apply()`.
+
+* Reads, queries, full-text searches, and graph traversals execute locally against SQLite with $O(1)$ / $O(\log N)$ performance.
 
 ```
 
@@ -110,6 +120,7 @@ The system uses Command Query Responsibility Segregation (CQRS) to achieve multi
 ## 4. Database Schema & Single-Table Key-Value Architecture
 
 ### 3.1 Unified Storage Table (`crm_store`)
+
 All entity records, interactions, and ontology structures are stored in a single table without `ROWID`:
 
 ```sql
@@ -156,6 +167,7 @@ The `metadata` column stores a JSON object containing an array of independent co
 }
 
 ```
+
 ## 4. Client Application Mutation & Write Pipeline
 
 ### 4.1 Write Lifecycle Rules
@@ -227,7 +239,6 @@ Because append-only P2P logs cannot be altered in-place:
 
 ---
 
-
 ## 5. Peer-to-Peer Replication Engine Specification
 
 The coding agent MUST implement the synchronization worker using the following Go structure:
@@ -236,79 +247,79 @@ The coding agent MUST implement the synchronization worker using the following G
 package sync
 
 import (
-	"context"
-	"database/sql"
+ "context"
+ "database/sql"
 )
 
 // P2P Engine Configuration
 type Config struct {
-	SwarmTopic    [32]byte
-	DBPath        string
-	StorageDir    string
-	EnableWAL     bool
+ SwarmTopic    [32]byte
+ DBPath        string
+ StorageDir    string
+ EnableWAL     bool
 }
 
 // ReplicationEngine connects SQLite Session API to Pure Go Autobase
 type ReplicationEngine struct {
-	db        *sql.DB
-	config    Config
-	// Pure Go Pear stack interfaces
-	autobase  AutobaseCore
-	hyperswarm SwarmManager
+ db        *sql.DB
+ config    Config
+ // Pure Go Pear stack interfaces
+ autobase  AutobaseCore
+ hyperswarm SwarmManager
 }
 
 // Initialize and start synchronization loop
 func NewReplicationEngine(cfg Config) (*ReplicationEngine, error) {
-	// 1. Open SQLite DB with WAL mode
-	// 2. Initialize Pure Go Hypercore & Autobase
-	// 3. Join Hyperswarm topic
-	// 4. Start background change-capture and changeset-apply loops
-	return &ReplicationEngine{}, nil
+ // 1. Open SQLite DB with WAL mode
+ // 2. Initialize Pure Go Hypercore & Autobase
+ // 3. Join Hyperswarm topic
+ // 4. Start background change-capture and changeset-apply loops
+ return &ReplicationEngine{}, nil
 }
 
 // CaptureLocalChange intercepts write transactions and appends changesets to Autobase
 func (r *ReplicationEngine) CaptureLocalChange(changeset []byte) error {
-	_, err := r.autobase.Append(changeset)
-	return err
+ _, err := r.autobase.Append(changeset)
+ return err
 }
 
 // ProcessRemoteChangesets reads from Autobase stream and applies changesets to SQLite
 func (r *ReplicationEngine) ProcessRemoteChangesets(ctx context.Context) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case change := <-r.autobase.ChangesetStream():
-			if err := r.applyChangesetToSQLite(change); err != nil {
-				// Handle Last-Writer-Wins (LWW) conflict resolution logic
-				r.resolveConflict(change, err)
-			}
-		}
-	}
+ for {
+  select {
+  case <-ctx.Done():
+   return ctx.Err()
+  case change := <-r.autobase.ChangesetStream():
+   if err := r.applyChangesetToSQLite(change); err != nil {
+    // Handle Last-Writer-Wins (LWW) conflict resolution logic
+    r.resolveConflict(change, err)
+   }
+  }
+ }
 }
 
 func (r *ReplicationEngine) applyChangesetToSQLite(change []byte) error {
-	// Execution of sqlite3changeset_apply using Autobase sequence ordering
-	return nil
+ // Execution of sqlite3changeset_apply using Autobase sequence ordering
+ return nil
 }
 
 func (r *ReplicationEngine) resolveConflict(change []byte, err error) {
-	// Fallback to Last-Writer-Wins using Autobase sequence ID
+ // Fallback to Last-Writer-Wins using Autobase sequence ID
 }
 ```
 
 ---
-## 6. Tech 
 
-follow canonical go idioms. Use pure go with no CGO dependency. create a config.yaml for configuration, 1st check if it is provided as arg to main, if not is it in the same dir as 
+## 6. Tech
+
+follow canonical go idioms. Use pure go with no CGO dependency. create a config.yaml for configuration, 1st check if it is provided as arg to main, if not is it in the same dir as
 the excutable else on the current dir.
- 
-Command subcommand registries should be handcrafted, don't use any their party lib like cobra/spf13 . 
+
+Command subcommand registries should be handcrafted, don't use any their party lib like cobra/spf13 .
 
 for logging use the guidelines of [logging pattern](structured_logging_pattern.md)
 
 for pure go implementation of [pear-p2p](https://docs.pears.com/p2p) see /home/innomon/B204-zone/owly-sewa/go-pear
-
 
 ## 7. Development & Implementation Roadmap for Coding Agent
 
