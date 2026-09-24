@@ -28,11 +28,12 @@
     - [x] Run WhatsaDK store unit tests targeting `sqlite-p2p://:memory:`
 - [x] Task: Conductor - User Manual Verification 'Integrate WhatsaDK Storage Backend into WhatsaDK' (Protocol in workflow.md) (d61fb1b)
 
-## Phase 4: Final Decoupling, Repository Renaming & Documentation
+## Phase 4: Final Decoupling, Repository Renaming & Documentation [checkpoint: 4ce13f2]
 - [x] Task: Purge extracted application code from `sqlite-p2p` (486af14)
     - [x] Remove `internal/cli`, `internal/mcp`, `internal/ontology`, `cmd/crm-peer`, and `pkg/whatsadk` from `sqlite-p2p`
     - [x] Ensure `sqlite-p2p` tests pass with >80% coverage across all remaining packages
 - [x] Task: Synchronize Documentation and Quality Gates (5db3273)
     - [x] Author distinct `README.md` and `ARCHITECTURE.md` for `sqlite-p2p`, `crm-lite`, and WhatsaDK
     - [x] Run full test suites across all 3 independent projects
-- [ ] Task: Conductor - User Manual Verification 'Final Decoupling, Repository Renaming & Documentation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Final Decoupling, Repository Renaming & Documentation' (Protocol in workflow.md) (4ce13f2)
+
