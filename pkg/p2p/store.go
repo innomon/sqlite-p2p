@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"context"
 	"database/sql"
 
 	"sqlite-p2p/internal/crypto"
@@ -31,6 +32,16 @@ const (
 	OpUpdate = store.OpUpdate
 	OpDelete = store.OpDelete
 )
+
+// DecodeChangeset deserializes bytes into a Changeset.
+func DecodeChangeset(data []byte) (*Changeset, error) {
+	return store.DecodeChangeset(data)
+}
+
+// ApplyChangeset applies a remote changeset to the repository.
+func ApplyChangeset(ctx context.Context, repo *Repository, cs *Changeset) error {
+	return store.ApplyChangeset(ctx, repo, cs)
+}
 
 // KeyRegistry aliases the per-key AES-256-GCM registry.
 type KeyRegistry = crypto.KeyRegistry
