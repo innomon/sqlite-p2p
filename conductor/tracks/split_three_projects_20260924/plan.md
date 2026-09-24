@@ -13,10 +13,10 @@
 - [x] Task: Scaffold `crm-lite` repository (6721d7b)
     - [x] Create `/home/innomon/B204-zone/owly-sewa/crm-lite` with `go.mod` requiring `sqlite-p2p`
     - [x] Setup initial build and test verification scripts
-- [~] Task: Migrate CRM components to `crm-lite`
-    - [ ] Move `cmd/crm-peer`, `internal/cli`, `internal/mcp`, `internal/ontology`, `internal/config`, `schema.go`, and `ontology.go` into `crm-lite`
-    - [ ] Update imports to `crm-lite/...` and `sqlite-p2p/...`
-    - [ ] Verify `crm-peer` binary compilation, all tests, and >80% test coverage in `crm-lite`
+- [x] Task: Migrate CRM components to `crm-lite` (c501da4)
+    - [x] Move `cmd/crm-peer`, `internal/cli`, `internal/mcp`, `internal/ontology`, `internal/config`, `schema.go`, and `ontology.go` into `crm-lite`
+    - [x] Update imports to `crm-lite/...` and `sqlite-p2p/...`
+    - [x] Verify `crm-peer` binary compilation, all tests, and >80% test coverage in `crm-lite`
 - [ ] Task: Conductor - User Manual Verification 'Scaffold & Extract crm-lite Application' (Protocol in workflow.md)
 
 ## Phase 3: Integrate WhatsaDK Storage Backend into WhatsaDK
