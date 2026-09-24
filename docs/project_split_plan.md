@@ -56,6 +56,7 @@ flowchart TD
 ## 2. Decoupled Projects Overview
 
 ### Project 1: `sqlite-p2p` (The Core Engine)
+
 - **Directory**: `/home/innomon/B204-zone/owly-sewa/sqlite-p2p`
 - **Go Module**: `sqlite-p2p`
 - **Scope & Role**:
@@ -63,6 +64,7 @@ flowchart TD
   - Zero application-layer concepts (no knowledge graph schemas, no customer tables, no WhatsApp types).
   - Provides local-first reads and writes in WAL mode with LWW (Last-Write-Wins) distributed multi-master reconciliation.
 - **Exported Public Interface (`pkg/p2p`)**:
+
   ```go
   package p2p
 
@@ -83,6 +85,7 @@ flowchart TD
   ```
 
 ### Project 2: `crm-lite` (The Application Layer)
+
 - **Directory**: `/home/innomon/B204-zone/owly-sewa/crm-lite`
 - **Go Module**: `crm-lite`
 - **Scope & Role**:
@@ -92,6 +95,7 @@ flowchart TD
 - **Dependency Flow**: Imports `sqlite-p2p`.
 
 ### Project 3: `whatsadk-litep2p-storage` (Merged into WhatsaDK)
+
 - **Target Directory**: Merged directly into `/home/innomon/B204-zone/orez/adk/whatsadk`
 - **Scope & Role**:
   - The WhatsaDK `storeBackend` alternative to PostgreSQL and SurrealDB.
@@ -104,7 +108,7 @@ flowchart TD
 ## 3. Package Mapping Matrix
 
 | Original Component (Monolith) | Target Project | Target Path | Function / Responsibility |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `internal/store/db.go` | `sqlite-p2p` | `internal/store/db.go` | Pure Go SQLite connection, WAL mode, KV table |
 | `internal/store/repository.go` | `sqlite-p2p` | `internal/store/repository.go` | Low-level KV CRUD and payload encryption |
 | `internal/store/changeset.go` | `sqlite-p2p` | `internal/store/changeset.go` | SQLite Session API & changeset serialization |
@@ -133,23 +137,27 @@ flowchart LR
 ```
 
 ### Phase 1: Core Engine Refactoring & Public API (`sqlite-p2p`)
+
 - Implement and test `pkg/p2p/engine.go` providing a clean embedding API.
 - Separate domain-specific table DDLs (`ontology_nodes`, `ontology_edges`) out of core `store.OpenDB`.
 - Verify >80% test coverage on `sqlite-p2p`.
 
 ### Phase 2: Scaffold & Extract `crm-lite`
+
 - Initialize `/home/innomon/B204-zone/owly-sewa/crm-lite` with its own `go.mod`.
 - Move CRM-specific packages (`cli`, `mcp`, `ontology`, `config`, `schema`, `cmd/crm-peer`).
 - Configure `replace sqlite-p2p => ../sqlite-p2p`.
 - Verify build of `bin/crm-peer`, test suite, and MCP server.
 
 ### Phase 3: Integrate WhatsaDK Storage Backend into WhatsaDK
+
 - Add `sqlite-p2p` dependency to `/home/innomon/B204-zone/orez/adk/whatsadk/go.mod`.
 - Merge `pkg/whatsadk` into `whatsadk/internal/store/p2p/`.
 - Wire `openSQLiteP2P` in `whatsadk/internal/store/store.go`.
 - Run WhatsaDK test suite with `WHATSADK_STORE_DSN="sqlite-p2p://:memory:"`.
 
 ### Phase 4: Final Decoupling, Directory Renaming & Documentation
+
 - Delete extracted application code from `sqlite-p2p`.
 - Rename repository directory to `/home/innomon/B204-zone/owly-sewa/sqlite-p2p`.
 - Author dedicated `README.md` and `ARCHITECTURE.md` for each project.
