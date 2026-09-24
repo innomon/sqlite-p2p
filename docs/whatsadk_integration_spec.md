@@ -69,7 +69,7 @@ In the WhatsaDK repository root (`/home/innomon/B204-zone/orez/adk/whatsadk/go.m
 
 ```bash
 go mod edit -require=sqlite-p2p@v0.0.0
-go mod edit -replace=sqlite-p2p=/home/innomon/B204-zone/owly-sewa/crm-sqlite-pear-p2p
+go mod edit -replace=sqlite-p2p=/home/innomon/B204-zone/owly-sewa/sqlite-p2p
 go mod tidy
 ```
 
