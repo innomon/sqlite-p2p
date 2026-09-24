@@ -20,6 +20,18 @@ type Repository = store.Repository
 // ChangesetTracker aliases the mutation capture tracker.
 type ChangesetTracker = store.ChangesetTracker
 
+// Changeset aliases the binary SQLite changeset structure.
+type Changeset = store.Changeset
+
+// OperationType aliases the operation type.
+type OperationType = store.OperationType
+
+const (
+	OpInsert = store.OpInsert
+	OpUpdate = store.OpUpdate
+	OpDelete = store.OpDelete
+)
+
 // KeyRegistry aliases the per-key AES-256-GCM registry.
 type KeyRegistry = crypto.KeyRegistry
 
