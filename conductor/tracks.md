@@ -4,4 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-*(All current specification tracks have been completed and archived to [conductor/archive/](./archive/). Use `/conductor:newTrack` to start a new track.)*
+- [ ] **Track: Split crm-sqlite-pear-p2p into 3 separate projects: sqlite-p2p (core engine), crm-lite (CRM application), and whatsadk-litep2p-storage (merged into whatsadk)**
+*Link: [./tracks/split_three_projects_20260924/](./tracks/split_three_projects_20260924/)*

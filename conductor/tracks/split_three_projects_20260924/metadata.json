@@ -1,0 +1,8 @@
+{
+  "track_id": "split_three_projects_20260924",
+  "type": "refactor",
+  "status": "new",
+  "created_at": "2026-09-24T05:57:00Z",
+  "updated_at": "2026-09-24T05:57:00Z",
+  "description": "Split crm-sqlite-pear-p2p into 3 separate projects: sqlite-p2p (core engine), crm-lite (CRM application), and whatsadk-litep2p-storage (merged into whatsadk)"
+}
