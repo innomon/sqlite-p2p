@@ -1,0 +1,12 @@
+{
+  "node_id": "node-macos-m4",
+  "listen_addr": "0.0.0.0:9001",
+  "peer_addrs": [
+    "127.0.0.1:9001"
+  ],
+  "db_path": "data/node2.db",
+  "swarm_topic": "sqlite-p2p-e2e-cluster",
+  "enable_wal": true,
+  "enable_crypto": false,
+  "auto_sync": true
+}

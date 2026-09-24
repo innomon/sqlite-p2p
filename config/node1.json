@@ -1,0 +1,10 @@
+{
+  "node_id": "node-linux-arm64",
+  "listen_addr": "0.0.0.0:9001",
+  "peer_addrs": [],
+  "db_path": "data/node1.db",
+  "swarm_topic": "sqlite-p2p-e2e-cluster",
+  "enable_wal": true,
+  "enable_crypto": false,
+  "auto_sync": true
+}

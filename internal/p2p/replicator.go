@@ -42,6 +42,13 @@ func NewReplicator(feed *ChangesetFeed, handler ChangesetHandler) *Replicator {
 }
 
 
+// SetHandler updates the incoming changeset handler callback.
+func (r *Replicator) SetHandler(handler ChangesetHandler) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.handler = handler
+}
+
 // AddPeer registers an active peer connection for bidirectional replication.
 func (r *Replicator) AddPeer(conn net.Conn) {
 	r.mu.Lock()

@@ -1,0 +1,12 @@
+{
+  "node_id": "unique-node-identifier",
+  "listen_addr": "0.0.0.0:9001",
+  "peer_addrs": [
+    "192.168.1.100:9001"
+  ],
+  "db_path": "data/peer_node.db",
+  "swarm_topic": "sqlite-p2p-e2e-cluster",
+  "enable_wal": true,
+  "enable_crypto": false,
+  "auto_sync": true
+}

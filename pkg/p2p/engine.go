@@ -111,6 +111,10 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 			replEngine.SetLogger(opts.Logger)
 		}
 
+		replicator.SetHandler(func(cs *store.Changeset) error {
+			return replEngine.ApplyRemoteChangeset(context.Background(), cs)
+		})
+
 		engine.feed = feed
 		engine.replicator = replicator
 		engine.replEngine = replEngine
@@ -144,6 +148,16 @@ func (e *Engine) ReplicationEngine() *internalp2p.ReplicationEngine {
 	return e.replEngine
 }
 
+// Replicator returns the internal p2p.Replicator instance, if initialized.
+func (e *Engine) Replicator() *internalp2p.Replicator {
+	return e.replicator
+}
+
+// ChangesetFeed returns the internal p2p.ChangesetFeed instance, if initialized.
+func (e *Engine) ChangesetFeed() *internalp2p.ChangesetFeed {
+	return e.feed
+}
+
 // Put writes or upserts a record into the repository and triggers changeset tracking.
 func (e *Engine) Put(ctx context.Context, key string, metadata json.RawMessage, data []byte) error {
 	e.mu.Lock()
@@ -163,6 +177,11 @@ func (e *Engine) Get(ctx context.Context, key string) (*store.Record, error) {
 // GetRaw retrieves a record by key without decrypting the payload.
 func (e *Engine) GetRaw(ctx context.Context, key string) (*store.Record, error) {
 	return e.repo.GetRaw(ctx, key)
+}
+
+// List retrieves records matching a key prefix with pagination.
+func (e *Engine) List(ctx context.Context, prefix string, limit, offset int) ([]store.Record, error) {
+	return e.repo.List(ctx, prefix, limit, offset)
 }
 
 // Delete removes a record by key and emits an OpDelete changeset.
