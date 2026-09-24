@@ -9,7 +9,7 @@
     - [x] Update core store tests and verify >80% coverage
 - [x] Task: Conductor - User Manual Verification 'Core Engine Refactoring & Public API' (Protocol in workflow.md) (676b143)
 
-## Phase 2: Scaffold & Extract `crm-lite` Application
+## Phase 2: Scaffold & Extract `crm-lite` Application [checkpoint: 6d2b93d]
 - [x] Task: Scaffold `crm-lite` repository (6721d7b)
     - [x] Create `/home/innomon/B204-zone/owly-sewa/crm-lite` with `go.mod` requiring `sqlite-p2p`
     - [x] Setup initial build and test verification scripts
@@ -17,10 +17,10 @@
     - [x] Move `cmd/crm-peer`, `internal/cli`, `internal/mcp`, `internal/ontology`, `internal/config`, `schema.go`, and `ontology.go` into `crm-lite`
     - [x] Update imports to `crm-lite/...` and `sqlite-p2p/...`
     - [x] Verify `crm-peer` binary compilation, all tests, and >80% test coverage in `crm-lite`
-- [ ] Task: Conductor - User Manual Verification 'Scaffold & Extract crm-lite Application' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Scaffold & Extract crm-lite Application' (Protocol in workflow.md) (6d2b93d)
 
 ## Phase 3: Integrate WhatsaDK Storage Backend into WhatsaDK
-- [ ] Task: Configure WhatsaDK dependencies
+- [~] Task: Configure WhatsaDK dependencies
     - [ ] Add `sqlite-p2p` requirement and replace directive to `/home/innomon/B204-zone/orez/adk/whatsadk/go.mod`
 - [ ] Task: Implement native SQLite P2P backend in WhatsaDK (TDD)
     - [ ] Move `pkg/whatsadk` code into `whatsadk/internal/store/p2p/`
