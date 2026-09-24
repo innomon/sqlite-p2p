@@ -45,3 +45,39 @@ func NewChangesetTracker(repo *Repository) *ChangesetTracker {
 func NewKeyRegistry(db *sql.DB) (*KeyRegistry, error) {
 	return crypto.NewKeyRegistry(db)
 }
+
+// SwarmManager aliases the peer discovery and connection coordinator.
+type SwarmManager = internalp2p.SwarmManager
+
+// SwarmManagerOptions aliases the swarm configuration options.
+type SwarmManagerOptions = internalp2p.SwarmManagerOptions
+
+// NewSwarmManager initializes a SwarmManager with the provided options.
+func NewSwarmManager(opts SwarmManagerOptions) (*SwarmManager, error) {
+	return internalp2p.NewSwarmManager(opts)
+}
+
+// ChangesetFeed aliases the append-only changeset feed.
+type ChangesetFeed = internalp2p.ChangesetFeed
+
+// NewChangesetFeed initializes or opens a ChangesetFeed at dir.
+func NewChangesetFeed(dir string) (*ChangesetFeed, error) {
+	return internalp2p.NewChangesetFeed(dir)
+}
+
+// Replicator aliases the replication state machine.
+type Replicator = internalp2p.Replicator
+
+// ChangesetHandler aliases the callback for incoming remote changesets.
+type ChangesetHandler = internalp2p.ChangesetHandler
+
+// NewReplicator initializes a Replicator.
+func NewReplicator(feed *ChangesetFeed, handler ChangesetHandler) *Replicator {
+	return internalp2p.NewReplicator(feed, handler)
+}
+
+// NewReplicationEngine initializes a ReplicationEngine.
+func NewReplicationEngine(repo *Repository, feed *ChangesetFeed, replicator *Replicator) *ReplicationEngine {
+	return internalp2p.NewReplicationEngine(repo, feed, replicator)
+}
+

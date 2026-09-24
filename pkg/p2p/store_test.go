@@ -37,4 +37,27 @@ func TestStoreExports(t *testing.T) {
 	if err != p2p.ErrNotFound {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
+
+	feedDir := t.TempDir()
+	feed, err := p2p.NewChangesetFeed(feedDir)
+	if err != nil {
+		t.Fatalf("NewChangesetFeed failed: %v", err)
+	}
+
+	rep := p2p.NewReplicator(feed, nil)
+	if rep == nil {
+		t.Fatal("NewReplicator returned nil")
+	}
+
+	replEngine := p2p.NewReplicationEngine(repo, feed, rep)
+	if replEngine == nil {
+		t.Fatal("NewReplicationEngine returned nil")
+	}
+
+	swarm, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{Port: 0})
+	if err != nil {
+		t.Fatalf("NewSwarmManager failed: %v", err)
+	}
+	defer swarm.Close()
 }
+
