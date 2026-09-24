@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -75,7 +74,6 @@ func TestReplicationApp_Commands(t *testing.T) {
 		},
 		engine:   engine,
 		registry: NewCommandRegistry(),
-		peerMap:  make(map[string]net.Conn),
 		stopChan: make(chan struct{}),
 	}
 	app.initCommands()
@@ -138,7 +136,8 @@ func TestConfigFileLoading(t *testing.T) {
 
 	cfgJSON := `{
 		"node_id": "test-node-load",
-		"listen_addr": "127.0.0.1:9099",
+		"swarm_port": 9099,
+		"bootstrap": ["127.0.0.1:9098"],
 		"peer_addrs": ["127.0.0.1:9098"],
 		"db_path": "data/test_load.db"
 	}`
@@ -160,8 +159,11 @@ func TestConfigFileLoading(t *testing.T) {
 	if parsed.NodeID != "test-node-load" {
 		t.Fatalf("unexpected node_id: %s", parsed.NodeID)
 	}
-	if parsed.ListenAddr != "127.0.0.1:9099" {
-		t.Fatalf("unexpected listen_addr: %s", parsed.ListenAddr)
+	if parsed.SwarmPort != 9099 {
+		t.Fatalf("unexpected swarm_port: %d", parsed.SwarmPort)
+	}
+	if len(parsed.Bootstrap) != 1 || parsed.Bootstrap[0] != "127.0.0.1:9098" {
+		t.Fatalf("unexpected bootstrap: %+v", parsed.Bootstrap)
 	}
 	if len(parsed.PeerAddrs) != 1 || parsed.PeerAddrs[0] != "127.0.0.1:9098" {
 		t.Fatalf("unexpected peer_addrs: %+v", parsed.PeerAddrs)

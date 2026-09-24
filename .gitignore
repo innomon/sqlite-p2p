@@ -1,6 +1,4 @@
-bin/*
-!bin/e2e-replication-linux-arm64
-!bin/e2e-replication-darwin-arm64
+bin/
 *.db
 *.db-wal
 *.db-shm
@@ -8,3 +6,4 @@ bin/*
 coverage.out
 data/
 *.hypercore
+

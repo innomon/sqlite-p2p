@@ -76,3 +76,10 @@ CREATE TABLE IF NOT EXISTS crm_store (
 - Payloads are encrypted using authenticated symmetric `AES-256-GCM`.
 - Encryption keys are stored in a local `KeyRegistry`.
 - Purging a key via `keys.PurgeKey(keyID)` renders all historical and replicated ciphertext permanently unrecoverable, fulfilling GDPR right-to-be-forgotten requirements while maintaining replication causal integrity.
+
+### 2.5 HyperDHT Bootstrapping & Swarm Discovery
+- **Zero Static Ports**: Hyperswarm binds to dynamic ephemeral ports (`Port: 0`) assigned by the OS, eliminating the need to expose or port-forward static TCP ports.
+- **Air-Gapped & Offline by Default**: When `bootstrap` is empty or omitted, nodes do not dial public internet bootstrap servers. Instead, nodes operate as independent local DHT roots, ensuring zero data leakage and complete offline capability.
+- **Cluster Bootstrapping**: In private LAN or VPN environments, one node serves as the initial cluster seed, and other nodes provide its dynamic DHT address in their `bootstrap` configuration. Once connected, peers discover each other automatically using the 32-byte Swarm Topic.
+- **Encrypted Transport**: All peer communication is secured using Noise SecretStream sessions before exchanging Hypercore changesets.
+

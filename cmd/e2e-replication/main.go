@@ -13,8 +13,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -24,8 +24,9 @@ import (
 // NodeConfig defines the configuration parameters for a replication node.
 type NodeConfig struct {
 	NodeID       string   `json:"node_id"`
-	ListenAddr   string   `json:"listen_addr"`
-	PeerAddrs    []string `json:"peer_addrs"`
+	SwarmPort    int      `json:"swarm_port"` // 0 = dynamic ephemeral port (Pear P2P default)
+	Bootstrap    []string `json:"bootstrap"`  // HyperDHT bootstrap addresses
+	PeerAddrs    []string `json:"peer_addrs"` // Optional direct peer addresses (e.g. ["192.168.1.100:43219"])
 	DBPath       string   `json:"db_path"`
 	SwarmTopic   string   `json:"swarm_topic"`
 	EnableWAL    bool     `json:"enable_wal"`
@@ -85,27 +86,24 @@ func (cr *CommandRegistry) Execute(ctx context.Context, app *ReplicationApp, lin
 type ReplicationApp struct {
 	cfg      NodeConfig
 	engine   *p2p.Engine
-	listener net.Listener
 	logger   *slog.Logger
 	registry *CommandRegistry
-
-	mu       sync.Mutex
-	peerMap  map[string]net.Conn
 	stopChan chan struct{}
 }
 
 func main() {
 	configPath := flag.String("config", "", "Path to JSON configuration file")
 	nodeID := flag.String("node", "", "Node ID (e.g. node-linux, node-macos)")
-	listenAddr := flag.String("listen", "", "Listen address (e.g. 0.0.0.0:9001)")
-	peerAddr := flag.String("peer", "", "Remote peer address to connect to (e.g. 192.168.1.100:9001)")
+	swarmPort := flag.Int("port", 0, "Swarm listening port (0 = dynamic ephemeral port, no static open port needed)")
+	bootstrapAddr := flag.String("bootstrap", "", "DHT bootstrap node address (e.g. 192.168.1.100:43219)")
+	peerAddr := flag.String("peer", "", "Direct peer address to connect to (e.g. 192.168.1.100:43219)")
 	dbPath := flag.String("db", "", "SQLite database file path (e.g. data/node1.db)")
 	cmdExec := flag.String("cmd", "", "One-shot command to run and exit (e.g. 'put user:1 Alice')")
 	flag.Parse()
 
 	cfg := NodeConfig{
 		NodeID:       "node-peer",
-		ListenAddr:   "0.0.0.0:9001",
+		SwarmPort:    0, // 0 = dynamic ephemeral port (no static open port required)
 		DBPath:       "data/node.db",
 		SwarmTopic:   "sqlite-p2p-e2e-cluster",
 		EnableWAL:    true,
@@ -129,8 +127,11 @@ func main() {
 	if *nodeID != "" {
 		cfg.NodeID = *nodeID
 	}
-	if *listenAddr != "" {
-		cfg.ListenAddr = *listenAddr
+	if *swarmPort != 0 {
+		cfg.SwarmPort = *swarmPort
+	}
+	if *bootstrapAddr != "" {
+		cfg.Bootstrap = append(cfg.Bootstrap, *bootstrapAddr)
 	}
 	if *dbPath != "" {
 		cfg.DBPath = *dbPath
@@ -156,6 +157,8 @@ func main() {
 		EnableWAL:    cfg.EnableWAL,
 		EnableCrypto: cfg.EnableCrypto,
 		SwarmTopic:   topicHash,
+		SwarmPort:    cfg.SwarmPort,
+		Bootstrap:    cfg.Bootstrap,
 		Logger:       logger,
 	})
 	if err != nil {
@@ -169,29 +172,29 @@ func main() {
 		engine:   engine,
 		logger:   logger,
 		registry: NewCommandRegistry(),
-		peerMap:  make(map[string]net.Conn),
 		stopChan: make(chan struct{}),
 	}
 
 	app.initCommands()
 
-	// Start TCP listener for peer replication
-	listener, err := net.Listen("tcp", cfg.ListenAddr)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to start listener on %s: %v\n", cfg.ListenAddr, err)
-		os.Exit(1)
+	dhtAddr := ""
+	assignedPort := 0
+	if engine.Swarm() != nil {
+		dhtAddr = engine.Swarm().DHTAddr()
+		assignedPort = engine.Swarm().Port()
 	}
-	app.listener = listener
-	go app.acceptLoop()
 
 	fmt.Printf("=================================================================\n")
-	fmt.Printf("  sqlite-p2p Node [%s] Online\n", cfg.NodeID)
-	fmt.Printf("  Listening: %s\n", listener.Addr().String())
-	fmt.Printf("  Database:  %s\n", cfg.DBPath)
-	fmt.Printf("  Cluster:   %s\n", cfg.SwarmTopic)
+	fmt.Printf("  sqlite-p2p Pear P2P Node [%s] Online\n", cfg.NodeID)
+	fmt.Printf("  Pear Protocol: Hyperswarm + HyperDHT + Noise SecretStream\n")
+	fmt.Printf("  Swarm Topic:   %s\n", cfg.SwarmTopic)
+	if dhtAddr != "" {
+		fmt.Printf("  DHT Address:   %s (Dynamic port %d - no static port forward needed)\n", dhtAddr, assignedPort)
+	}
+	fmt.Printf("  Database:      %s\n", cfg.DBPath)
 	fmt.Printf("=================================================================\n\n")
 
-	// Connect to configured initial peers in background
+	// Connect to configured initial direct peers if any
 	for _, pAddr := range cfg.PeerAddrs {
 		go app.connectToPeer(context.Background(), pAddr)
 	}
@@ -217,54 +220,11 @@ func main() {
 		<-sigChan
 		fmt.Println("\nReceived shutdown signal. Exiting...")
 		close(app.stopChan)
-		_ = listener.Close()
 		cancel()
 		os.Exit(0)
 	}()
 
 	app.runInteractive(ctx)
-}
-
-func (a *ReplicationApp) acceptLoop() {
-	for {
-		conn, err := a.listener.Accept()
-		if err != nil {
-			select {
-			case <-a.stopChan:
-				return
-			default:
-				return
-			}
-		}
-
-		remote := conn.RemoteAddr().String()
-		fmt.Printf("\n[P2P] Inbound peer connection from: %s\n> ", remote)
-
-		a.mu.Lock()
-		a.peerMap[remote] = conn
-		a.mu.Unlock()
-
-		replicator := a.engine.Replicator()
-		if replicator != nil {
-			go func(c net.Conn, rAddr string) {
-				replicator.HandleConnection(c)
-				a.mu.Lock()
-				delete(a.peerMap, rAddr)
-				a.mu.Unlock()
-				fmt.Printf("\n[P2P] Inbound peer disconnected: %s\n> ", rAddr)
-			}(conn, remote)
-
-			if a.cfg.AutoSync && a.engine.ReplicationEngine() != nil {
-				go func() {
-					time.Sleep(200 * time.Millisecond)
-					count, err := a.engine.ReplicationEngine().SyncPeers(context.Background())
-					if err == nil && count > 0 {
-						fmt.Printf("[P2P] Synced %d feed changesets to new peer %s\n> ", count, remote)
-					}
-				}()
-			}
-		}
-	}
 }
 
 func (a *ReplicationApp) connectToPeer(ctx context.Context, addr string) {
@@ -273,44 +233,37 @@ func (a *ReplicationApp) connectToPeer(ctx context.Context, addr string) {
 		return
 	}
 
-	a.mu.Lock()
-	if _, exists := a.peerMap[addr]; exists {
-		a.mu.Unlock()
-		return
-	}
-	a.mu.Unlock()
-
-	conn, err := net.DialTimeout("tcp", addr, 3*time.Second)
+	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
-		fmt.Printf("[P2P] Failed to connect to peer %s: %v\n> ", addr, err)
+		fmt.Printf("[P2P] Invalid peer address %s: %v\n> ", addr, err)
+		return
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		fmt.Printf("[P2P] Invalid peer port in %s: %v\n> ", addr, err)
 		return
 	}
 
-	a.mu.Lock()
-	a.peerMap[addr] = conn
-	a.mu.Unlock()
+	if a.engine.Swarm() == nil {
+		fmt.Println("[P2P] Swarm manager not initialized\n> ")
+		return
+	}
 
-	fmt.Printf("[P2P] Connected to remote peer: %s\n> ", addr)
+	if err := a.engine.Swarm().ConnectDirect(host, port); err != nil {
+		fmt.Printf("[P2P] Direct connect to %s failed: %v\n> ", addr, err)
+		return
+	}
 
-	replicator := a.engine.Replicator()
-	if replicator != nil {
-		go func(c net.Conn, target string) {
-			replicator.HandleConnection(c)
-			a.mu.Lock()
-			delete(a.peerMap, target)
-			a.mu.Unlock()
-			fmt.Printf("\n[P2P] Peer connection lost: %s\n> ", target)
-		}(conn, addr)
+	fmt.Printf("[P2P] Direct encrypted Pear connection established to: %s\n> ", addr)
 
-		if a.cfg.AutoSync && a.engine.ReplicationEngine() != nil {
-			go func() {
-				time.Sleep(200 * time.Millisecond)
-				count, err := a.engine.ReplicationEngine().SyncPeers(ctx)
-				if err == nil && count > 0 {
-					fmt.Printf("[P2P] Synced %d feed changesets to peer %s\n> ", count, addr)
-				}
-			}()
-		}
+	if a.cfg.AutoSync && a.engine.ReplicationEngine() != nil {
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			count, err := a.engine.ReplicationEngine().SyncPeers(ctx)
+			if err == nil && count > 0 {
+				fmt.Printf("[P2P] Synced %d feed changesets to peer %s\n> ", count, addr)
+			}
+		}()
 	}
 }
 
@@ -327,10 +280,10 @@ func (a *ReplicationApp) initCommands() {
 			fmt.Println("  get <key>              - Retrieve record from local SQLite store")
 			fmt.Println("  del <key>              - Delete record & broadcast OpDelete changeset")
 			fmt.Println("  list [prefix]          - List stored records in local SQLite store")
-			fmt.Println("  connect <host:port>    - Establish peer replication connection")
+			fmt.Println("  connect <host:port>    - Establish direct encrypted Pear connection")
 			fmt.Println("  sync                   - Replay and broadcast all changesets to peers")
-			fmt.Println("  peers                  - Display list of connected peer nodes")
-			fmt.Println("  status                 - Display local node and engine metrics")
+			fmt.Println("  peers                  - Display active peer connections")
+			fmt.Println("  status                 - Display Pear Swarm & replication engine status")
 			fmt.Println("  auto-test [count]      - Run automated batch write & replication test")
 			fmt.Println("  help                   - Display this command reference")
 			fmt.Println("  exit, quit             - Terminate node")
@@ -430,7 +383,7 @@ func (a *ReplicationApp) initCommands() {
 	cr.Register(Command{
 		Name:        "connect",
 		Usage:       "connect <host:port>",
-		Description: "Connect to a peer node",
+		Description: "Connect directly to a peer using SecretStream encryption",
 		Run: func(ctx context.Context, app *ReplicationApp, args []string) error {
 			if len(args) < 1 {
 				return fmt.Errorf("usage: connect <host:port>")
@@ -462,12 +415,15 @@ func (a *ReplicationApp) initCommands() {
 		Usage:       "peers",
 		Description: "Show connected peers",
 		Run: func(ctx context.Context, app *ReplicationApp, args []string) error {
-			app.mu.Lock()
-			defer app.mu.Unlock()
-			fmt.Printf("Connected peers (%d):\n", len(app.peerMap))
-			for addr := range app.peerMap {
-				fmt.Printf("  - %s\n", addr)
+			peerCount := 0
+			if app.engine.Replicator() != nil {
+				peerCount = app.engine.Replicator().PeerCount()
 			}
+			swarmPeers := 0
+			if app.engine.Swarm() != nil {
+				swarmPeers = app.engine.Swarm().PeerCount()
+			}
+			fmt.Printf("Active Peer Connections: %d (Swarm Mesh: %d)\n", peerCount, swarmPeers)
 			return nil
 		},
 	})
@@ -475,22 +431,31 @@ func (a *ReplicationApp) initCommands() {
 	cr.Register(Command{
 		Name:        "status",
 		Usage:       "status",
-		Description: "Show local node and replication status",
+		Description: "Show Pear Swarm and local node metrics",
 		Run: func(ctx context.Context, app *ReplicationApp, args []string) error {
-			app.mu.Lock()
-			peerCount := len(app.peerMap)
-			app.mu.Unlock()
+			peerCount := 0
+			if app.engine.Replicator() != nil {
+				peerCount = app.engine.Replicator().PeerCount()
+			}
 
-			var feedLen uint64
+			feedLen := uint64(0)
 			if app.engine.ChangesetFeed() != nil {
 				feedLen = app.engine.ChangesetFeed().Len()
 			}
 
+			dhtAddr := "N/A"
+			assignedPort := 0
+			if app.engine.Swarm() != nil {
+				dhtAddr = app.engine.Swarm().DHTAddr()
+				assignedPort = app.engine.Swarm().Port()
+			}
+
 			fmt.Printf("Node Status:\n")
 			fmt.Printf("  Node ID:         %s\n", app.cfg.NodeID)
-			fmt.Printf("  Listen Address:  %s\n", app.listener.Addr().String())
-			fmt.Printf("  Database:        %s\n", app.cfg.DBPath)
+			fmt.Printf("  Protocol:        Pear Hyperswarm (HyperDHT + Noise SecretStream)\n")
 			fmt.Printf("  Cluster Topic:   %s\n", app.cfg.SwarmTopic)
+			fmt.Printf("  DHT Endpoint:    %s (Dynamic port %d, no static port forward needed)\n", dhtAddr, assignedPort)
+			fmt.Printf("  Database:        %s\n", app.cfg.DBPath)
 			fmt.Printf("  Active Peers:    %d\n", peerCount)
 			fmt.Printf("  Feed Changesets: %d\n", feedLen)
 			return nil

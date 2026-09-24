@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"sync"
 
+	"go-pear/pkg/hyperswarm"
 	"sqlite-p2p/internal/crypto"
 	internalp2p "sqlite-p2p/internal/p2p"
 	"sqlite-p2p/internal/store"
@@ -21,6 +23,8 @@ type EngineOptions struct {
 	EnableWAL    bool
 	EnableCrypto bool
 	SwarmTopic   [32]byte
+	SwarmPort    int
+	Bootstrap    []string
 	KeyRegistry  *crypto.KeyRegistry
 	Logger       *slog.Logger
 }
@@ -35,6 +39,7 @@ type Engine struct {
 	replEngine  *internalp2p.ReplicationEngine
 	feed        *internalp2p.ChangesetFeed
 	replicator  *internalp2p.Replicator
+	swarm       *internalp2p.SwarmManager
 	keys        *crypto.KeyRegistry
 	logger      *slog.Logger
 	mu          sync.RWMutex
@@ -115,9 +120,36 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 			return replEngine.ApplyRemoteChangeset(context.Background(), cs)
 		})
 
+		swarmMgr, err := internalp2p.NewSwarmManager(internalp2p.SwarmManagerOptions{
+			Port:      opts.SwarmPort,
+			Bootstrap: opts.Bootstrap,
+		})
+		if err != nil {
+			if ownsDB {
+				_ = db.Close()
+			}
+			return nil, fmt.Errorf("failed to initialize swarm manager: %w", err)
+		}
+		if opts.Logger != nil {
+			swarmMgr.SetLogger(opts.Logger)
+		}
+
+		swarmMgr.OnRawConnection(func(conn net.Conn, peer *hyperswarm.PeerConnection) {
+			replicator.AddPeer(conn)
+			go replicator.HandleConnection(conn)
+		})
+
+		if err := swarmMgr.Join(opts.SwarmTopic); err != nil {
+			if ownsDB {
+				_ = db.Close()
+			}
+			return nil, fmt.Errorf("failed to join swarm topic: %w", err)
+		}
+
 		engine.feed = feed
 		engine.replicator = replicator
 		engine.replEngine = replEngine
+		engine.swarm = swarmMgr
 	}
 
 	return engine, nil
@@ -156,6 +188,11 @@ func (e *Engine) Replicator() *internalp2p.Replicator {
 // ChangesetFeed returns the internal p2p.ChangesetFeed instance, if initialized.
 func (e *Engine) ChangesetFeed() *internalp2p.ChangesetFeed {
 	return e.feed
+}
+
+// Swarm returns the internal p2p.SwarmManager instance, if initialized.
+func (e *Engine) Swarm() *internalp2p.SwarmManager {
+	return e.swarm
 }
 
 // Put writes or upserts a record into the repository and triggers changeset tracking.
@@ -199,6 +236,10 @@ func (e *Engine) Delete(ctx context.Context, key string) error {
 func (e *Engine) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	if e.swarm != nil {
+		_ = e.swarm.Close()
+	}
 
 	if e.replicator != nil {
 		e.replicator.Close()
