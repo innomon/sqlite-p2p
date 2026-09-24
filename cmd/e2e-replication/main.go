@@ -145,6 +145,17 @@ func main() {
 		_ = os.MkdirAll(dir, 0o755)
 	}
 
+	// If no bootstrap nodes and no direct peers were specified, attempt LAN UDP broadcast discovery
+	if len(cfg.Bootstrap) == 0 && len(cfg.PeerAddrs) == 0 {
+		discCtx, discCancel := context.WithTimeout(context.Background(), 750*time.Millisecond)
+		lanPeer, err := p2p.DiscoverLANBootstrap(discCtx, "sqlite-p2p", cfg.SwarmTopic, p2p.DefaultBeaconPort, 600*time.Millisecond)
+		discCancel()
+		if err == nil && lanPeer != "" {
+			fmt.Printf("[LAN Auto-Discovery] Found active local cluster seed at %s! Auto-joining...\n", lanPeer)
+			cfg.Bootstrap = append(cfg.Bootstrap, lanPeer)
+		}
+	}
+
 	// Topic hash
 	topicHash := sha256.Sum256([]byte(cfg.SwarmTopic))
 
@@ -177,19 +188,29 @@ func main() {
 
 	app.initCommands()
 
-	dhtAddr := ""
+	routableDHT := ""
 	assignedPort := 0
 	if engine.Swarm() != nil {
-		dhtAddr = engine.Swarm().DHTAddr()
+		dhtAddr := engine.Swarm().DHTAddr()
+		routableDHT = p2p.NormalizeDHTAddr(dhtAddr)
 		assignedPort = engine.Swarm().Port()
+
+		// Start background LAN discovery beacon so other nodes on this Wi-Fi/LAN auto-discover this node
+		beaconMsg := p2p.BeaconMessage{
+			Cluster: "sqlite-p2p",
+			Topic:   cfg.SwarmTopic,
+			DHTAddr: routableDHT,
+			NodeID:  cfg.NodeID,
+		}
+		_ = p2p.StartBeaconBroadcaster(context.Background(), beaconMsg, p2p.DefaultBeaconPort, 2500*time.Millisecond)
 	}
 
 	fmt.Printf("=================================================================\n")
 	fmt.Printf("  sqlite-p2p Pear P2P Node [%s] Online\n", cfg.NodeID)
 	fmt.Printf("  Pear Protocol: Hyperswarm + HyperDHT + Noise SecretStream\n")
 	fmt.Printf("  Swarm Topic:   %s\n", cfg.SwarmTopic)
-	if dhtAddr != "" {
-		fmt.Printf("  DHT Address:   %s (Dynamic port %d - no static port forward needed)\n", dhtAddr, assignedPort)
+	if routableDHT != "" {
+		fmt.Printf("  DHT Endpoint:  %s (Port %d, auto-discoverable on LAN, zero port forward needed)\n", routableDHT, assignedPort)
 	}
 	fmt.Printf("  Database:      %s\n", cfg.DBPath)
 	fmt.Printf("=================================================================\n\n")

@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"sqlite-p2p/internal/crypto"
 	internalp2p "sqlite-p2p/internal/p2p"
@@ -102,5 +103,26 @@ func NewReplicator(feed *ChangesetFeed, handler ChangesetHandler) *Replicator {
 // NewReplicationEngine initializes a ReplicationEngine.
 func NewReplicationEngine(repo *Repository, feed *ChangesetFeed, replicator *Replicator) *ReplicationEngine {
 	return internalp2p.NewReplicationEngine(repo, feed, replicator)
+}
+
+// DefaultBeaconPort is the standard UDP broadcast port for local cluster discovery.
+const DefaultBeaconPort = internalp2p.DefaultBeaconPort
+
+// BeaconMessage aliases the local broadcast beacon message.
+type BeaconMessage = internalp2p.BeaconMessage
+
+// StartBeaconBroadcaster starts periodic LAN discovery broadcast.
+func StartBeaconBroadcaster(ctx context.Context, msg BeaconMessage, port int, interval time.Duration) error {
+	return internalp2p.StartBeaconBroadcaster(ctx, msg, port, interval)
+}
+
+// DiscoverLANBootstrap listens for a LAN beacon matching cluster/topic.
+func DiscoverLANBootstrap(ctx context.Context, cluster, topic string, port int, timeout time.Duration) (string, error) {
+	return internalp2p.DiscoverLANBootstrap(ctx, cluster, topic, port, timeout)
+}
+
+// NormalizeDHTAddr resolves an unspecified IP to a routable LAN IP.
+func NormalizeDHTAddr(addr string) string {
+	return internalp2p.NormalizeDHTAddr(addr)
 }
 

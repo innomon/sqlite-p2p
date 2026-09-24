@@ -82,4 +82,5 @@ CREATE TABLE IF NOT EXISTS crm_store (
 - **Air-Gapped & Offline by Default**: When `bootstrap` is empty or omitted, nodes do not dial public internet bootstrap servers. Instead, nodes operate as independent local DHT roots, ensuring zero data leakage and complete offline capability.
 - **Cluster Bootstrapping**: In private LAN or VPN environments, one node serves as the initial cluster seed, and other nodes provide its dynamic DHT address in their `bootstrap` configuration. Once connected, peers discover each other automatically using the 32-byte Swarm Topic.
 - **Encrypted Transport**: All peer communication is secured using Noise SecretStream sessions before exchanging Hypercore changesets.
+- **Multi-Tenant & Multi-Topic Cryptographic Isolation**: A single HyperDHT bootstrap node (or local LAN beacon port) can concurrently serve multiple independent applications (such as `sqlite-p2p` and `dap`). HyperDHT is topic-agnostic; discovery queries are partitioned by 32-byte topic hashes, preventing cross-cluster data leakage while sharing discovery infrastructure.
 

@@ -38,10 +38,12 @@ Unlike traditional client-server databases or HTTP APIs, `sqlite-p2p` runs nativ
 - `/scripts/run-e2e-test.sh` (or symlink `/run-e2e-test.sh`): Universal shell runner that inspects `uname -s` and `uname -m`, detects the platform, and launches the appropriate executable.
 - `/bin/e2e-replication-linux-arm64`: Precompiled standalone binary for Linux ARM64 / AArch64.
 - `/bin/e2e-replication-darwin-arm64`: Precompiled standalone binary for macOS Apple Silicon (ARM64 / M1–M4).
+- `/bin/dht-seed-linux-arm64` & `/bin/dht-seed-darwin-arm64`: Standalone HyperDHT bootstrap seed server binaries.
 - `/config/node1.json`: Configuration for Computer 1 (Linux ARM64).
 - `/config/node2.json`: Configuration for Computer 2 (macOS M4).
 - `/config/config.example.json`: Annotated template configuration.
 - `/cmd/e2e-replication/main.go`: Pure Go CLI entrypoint with a handcrafted command registry (no spf13/Cobra).
+- `/cmd/dht-seed/main.go`: Standalone HyperDHT bootstrap server entrypoint.
 
 ---
 
@@ -54,27 +56,44 @@ Unlike traditional client-server databases or HTTP APIs, `sqlite-p2p` runs nativ
 1. **Air-Gapped & Offline by Default**: In `/internal/p2p/swarm.go` and `go-pear/pkg/hyperdht/dht.go`, an empty bootstrap array tells the HyperDHT subsystem to initialize with zero external bootstrap contacts. This guarantees complete network isolation, zero telemetry, zero data leakage, and total independence from third-party cloud infrastructure.
 2. **Local Root / Seed Mode**: A node running with `bootstrap: []` operates as an independent root DHT node. It maintains its own local routing table and serves incoming DHT queries from other peers that connect to it.
 
-### 3.2 Why Two Devices on LAN Require One Bootstrap Entry
+### 3.2 Implemented Zero-Config Solutions
 
-Because no public bootstrap servers are queried by default:
+To solve peer discovery seamlessly across both local and internet environments without relying on third-party servers, three unified solutions are implemented:
 
-- If both Computer 1 and Computer 2 start with `"bootstrap": []`, each node creates its own isolated, single-node DHT island. Neither node knows how to find the other.
-- **Solution**: One node acts as the local cluster seed. When Computer 1 starts, it announces its dynamic DHT endpoint (e.g. `192.168.1.100:43219`). Computer 2 specifies that endpoint in its `"bootstrap"` list:
+#### Solution A: Automatic LAN UDP Broadcast Discovery (Zero Manual Config on Wi-Fi/LAN)
 
-  ```json
-  "bootstrap": ["192.168.1.100:43219"]
+- When any node starts on a local network, it launches a background UDP broadcast beacon on port `49736` announcing its cluster topic and routable LAN IP (`NormalizeDHTAddr`).
+- When a second node starts on the same Wi-Fi/LAN with `"bootstrap": []`, it performs a brief 600ms passive listen on `49736`. If an active cluster seed is heard, it **automatically bootstraps without requiring any manual IP or port entry**.
+
+#### Solution B: Dedicated Standalone HyperDHT Seed Server (For Internet / WAN)
+
+- For multi-office or public internet deployments where devices are behind distinct NATs, you can run the standalone seed daemon:
+
+  ```bash
+  ./bin/dht-seed-linux-arm64 -port 49737
   ```
 
-- As soon as Computer 2 pings Computer 1's DHT address, both devices merge into the same DHT routing mesh and automatically discover each other on the shared **Swarm Topic** (`sqlite-p2p-e2e-cluster`).
+- Deploy this to any cloud VM (AWS, DigitalOcean, Hetzner) and point your client nodes to it:
+
+  ```json
+  "bootstrap": ["dht.yourdomain.com:49737"]
+  ```
+
+#### Solution C: Dart (`dap`) Host IP Resolution & Unspecified Address Fix
+
+- In `/home/innomon/B204-zone/dap/pear`:
+  - `HyperDhtNode.resolveRoutableAddress()` now actively inspects non-loopback host network interfaces (`NetworkInterface.list()`).
+  - Announcements no longer store `0.0.0.0` in `_topicStorage`.
+  - `HolePunchCoordinator` candidate fallbacks now use routable host IP addresses instead of unspecified loopbacks.
 
 ### 3.3 Comparison with the Official Node.js Holepunch Ecosystem
 
-| Dimension | Node.js Holepunch (`hyperswarm`) | Pure Go `sqlite-p2p` (`go-pear`) |
-| :--- | :--- | :--- |
-| **Default Bootstrap** | Hardcoded public servers (`bootstrap1.hyperdht.org:49737`, `dht1.holepunch.to`) | **Empty by default (`[]`)** |
-| **Internet Requirement** | Requires internet connectivity to boot up swarm | **Zero internet required**; works on private LANs, Wi-Fi, VPNs, or air-gapped field networks |
-| **Privacy / Isolation** | Announces swarm topics to public DHT nodes | **Completely private** to your own cluster nodes |
-| **Custom Public Relay** | Supported via custom options | Supported by adding your own cloud seed node to `"bootstrap"` |
+| Dimension | Node.js Holepunch (`hyperswarm`) | Pure Go `sqlite-p2p` (`go-pear`) | Dart (`dap_pear`) |
+| :--- | :--- | :--- | :--- |
+| **Default Bootstrap** | Hardcoded public servers (`bootstrap1.hyperdht.org`) | **Empty by default (`[]`)** | **Empty by default (`[]`)** |
+| **LAN Auto-Discovery** | Manual / Local subnet | **Automatic UDP broadcast beacon (port 49736)** | Resolved routable host IPs |
+| **Internet Requirement** | Requires public internet | **Zero internet required** (LAN/air-gapped ready) | Zero internet required |
+| **Dedicated Seed Node** | `hyperdht --bootstrap` | Standalone `./bin/dht-seed-*` binary | Supported via `HyperDhtNode.bind()` |
 
 ### 3.4 Deploying Global Discovery (Optional)
 
@@ -85,6 +104,35 @@ If you want devices to discover each other over the public internet without exch
   "203.0.113.10:49737"
 ]
 ```
+
+### 3.5 Multi-Cluster, Multi-Topic Isolation & Shared Infrastructure
+
+When running multiple independent decentralized applications on the same network (for example, `dap` for Keet chat/agents alongside `sqlite-p2p` for CRM database replication):
+
+#### 1. Do You Need Multiple Beacon Servers?
+
+**No.** The LAN discovery beacon is not a centralized server; it is an embedded peer-to-peer worker built directly into each node.
+
+- Every node on the same local network transmits and listens on the same shared UDP broadcast port (`49736`).
+- Discovery packets carry both a `cluster` tag and a `topic` hash.
+- Nodes automatically filter out packets belonging to different clusters or topics. A `dap` node listening on `49736` silently discards `sqlite-p2p` beacons, preventing cross-talk.
+
+#### 2. Can Multiple Clusters Share the Same DHT Bootstrap Server?
+
+**Yes.** HyperDHT is completely **topic-agnostic**:
+
+- A single HyperDHT bootstrap node (running on LAN or on a cloud VPS at `port 49737`) can serve as the routing rendezvous for hundreds of distinct clusters simultaneously.
+- The DHT routing table indexes announcements purely by their 32-byte target topic hash (`targetId`).
+- A node querying for `topic: "crm-topic"` only receives peer endpoints that announced `topic: "crm-topic"`. Peers querying `topic: "dap-chat"` only receive `dap-chat` contacts.
+
+#### 3. Topic Separation as the Cryptographic Boundary
+
+Always assign unique, meaningful topic strings to each cluster:
+
+- **`sqlite-p2p` (CRM Database)**: `"sqlite-p2p-crm-cluster"`
+- **`dap` (Keet Chat / Media)**: `"dap-agent-swarm-v1"`
+
+Even when sharing the exact same bootstrap node or local Wi-Fi, peers on different topics remain cryptographically isolated and will never exchange changesets or establish connection sessions.
 
 ---
 
