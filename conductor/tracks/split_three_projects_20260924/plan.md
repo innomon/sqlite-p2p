@@ -4,9 +4,9 @@
 - [x] Task: Export clean public API in `pkg/p2p` (TDD) (cbd732d)
     - [x] Write unit tests for public API initialization, DB opening, repository CRUD, and replication engine in `pkg/p2p/engine_test.go`
     - [x] Implement exported API in `pkg/p2p/engine.go` wrapping store, crypto, and P2P engine
-- [~] Task: Decouple CRM-specific tables from core DB initialization
-    - [ ] Make `ontology_nodes` and `ontology_edges` table creation an opt-in extension rather than core `OpenDB` DDL
-    - [ ] Update core store tests and verify >80% coverage
+- [x] Task: Decouple CRM-specific tables from core DB initialization (bd622cd)
+    - [x] Make `ontology_nodes` and `ontology_edges` table creation an opt-in extension rather than core `OpenDB` DDL
+    - [x] Update core store tests and verify >80% coverage
 - [ ] Task: Conductor - User Manual Verification 'Core Engine Refactoring & Public API' (Protocol in workflow.md)
 
 ## Phase 2: Scaffold & Extract `crm-lite` Application
