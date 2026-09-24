@@ -5,12 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"strconv"
 	"sync"
-	"time"
 
 	"go-pear/pkg/hyperswarm"
-	"go-pear/pkg/secretstream"
 )
 
 // SwarmManagerOptions specifies configuration for a local Hyperswarm peer.
@@ -105,7 +102,7 @@ func (sm *SwarmManager) Port() int {
 // DHTAddr returns the local DHT address string (useful for bootstrapping local test peers).
 func (sm *SwarmManager) DHTAddr() string {
 	if dht := sm.swarm.DHT(); dht != nil {
-		return dht.Addr().String()
+		return dht.RoutableAddr().String()
 	}
 	return ""
 }
@@ -168,28 +165,16 @@ func (sm *SwarmManager) OnRawConnection(fn RawConnectionHandler) {
 
 // ConnectDirect establishes a direct connection to a known IP and port.
 func (sm *SwarmManager) ConnectDirect(ip string, port int) error {
-	target := net.JoinHostPort(ip, strconv.Itoa(port))
-	rawConn, err := net.DialTimeout("tcp", target, 2*time.Second)
-	if err != nil {
-		return fmt.Errorf("direct dial failed: %w", err)
+	var topic [32]byte
+	sm.mu.RLock()
+	for t := range sm.activeTopics {
+		topic = t
+		break
 	}
+	sm.mu.RUnlock()
 
-	secConn, err := secretstream.Upgrade(rawConn, sm.swarm.KeyPair, true)
-	if err != nil {
-		_ = rawConn.Close()
-		return fmt.Errorf("secretstream upgrade failed: %w", err)
-	}
-
-	peerPK := secConn.RemotePublicKey()
-	peerConn := &hyperswarm.PeerConnection{
-		RemotePublicKey: peerPK,
-		Conn:            secConn,
-		IsInitiator:     true,
-		CreatedAt:       time.Now(),
-	}
-
-	sm.handleConnection(secConn, peerConn)
-	return nil
+	_, err := sm.swarm.ConnectDirect(ip, port, topic)
+	return err
 }
 
 // PeerCount returns the number of active peer connections.
