@@ -20,9 +20,9 @@
 - [x] Task: Conductor - User Manual Verification 'Scaffold & Extract crm-lite Application' (Protocol in workflow.md) (6d2b93d)
 
 ## Phase 3: Integrate WhatsaDK Storage Backend into WhatsaDK
-- [~] Task: Configure WhatsaDK dependencies
-    - [ ] Add `sqlite-p2p` requirement and replace directive to `/home/innomon/B204-zone/orez/adk/whatsadk/go.mod`
-- [ ] Task: Implement native SQLite P2P backend in WhatsaDK (TDD)
+- [x] Task: Configure WhatsaDK dependencies (83e9785)
+    - [x] Add `sqlite-p2p` requirement and replace directive to `/home/innomon/B204-zone/orez/adk/whatsadk/go.mod`
+- [~] Task: Implement native SQLite P2P backend in WhatsaDK (TDD)
     - [ ] Move `pkg/whatsadk` code into `whatsadk/internal/store/p2p/`
     - [ ] Wire `openSQLiteP2P` and `IsSQLiteP2P` in `whatsadk/internal/store/store.go`
     - [ ] Run WhatsaDK store unit tests targeting `sqlite-p2p://:memory:`
