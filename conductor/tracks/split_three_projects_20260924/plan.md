@@ -10,10 +10,10 @@
 - [x] Task: Conductor - User Manual Verification 'Core Engine Refactoring & Public API' (Protocol in workflow.md) (676b143)
 
 ## Phase 2: Scaffold & Extract `crm-lite` Application
-- [~] Task: Scaffold `crm-lite` repository
-    - [ ] Create `/home/innomon/B204-zone/owly-sewa/crm-lite` with `go.mod` requiring `sqlite-p2p`
-    - [ ] Setup initial build and test verification scripts
-- [ ] Task: Migrate CRM components to `crm-lite`
+- [x] Task: Scaffold `crm-lite` repository (6721d7b)
+    - [x] Create `/home/innomon/B204-zone/owly-sewa/crm-lite` with `go.mod` requiring `sqlite-p2p`
+    - [x] Setup initial build and test verification scripts
+- [~] Task: Migrate CRM components to `crm-lite`
     - [ ] Move `cmd/crm-peer`, `internal/cli`, `internal/mcp`, `internal/ontology`, `internal/config`, `schema.go`, and `ontology.go` into `crm-lite`
     - [ ] Update imports to `crm-lite/...` and `sqlite-p2p/...`
     - [ ] Verify `crm-peer` binary compilation, all tests, and >80% test coverage in `crm-lite`
