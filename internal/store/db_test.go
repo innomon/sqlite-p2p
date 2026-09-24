@@ -81,3 +81,40 @@ func TestOpenDBInvalidDir(t *testing.T) {
 		t.Fatalf("expected error for impossible path, got nil")
 	}
 }
+
+func TestInitOntologySchema_Decoupled(t *testing.T) {
+	database, err := store.OpenDB(":memory:", false)
+	if err != nil {
+		t.Fatalf("failed to open in-memory db: %v", err)
+	}
+	defer database.Close()
+
+	// 1. By default, ontology_nodes should NOT exist in core DB
+	var tableName string
+	err = database.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_nodes';").Scan(&tableName)
+	if err == nil {
+		t.Fatalf("expected ontology_nodes table NOT to exist initially in core OpenDB")
+	}
+
+	// 2. Calling InitOntologySchema creates both tables
+	if err := store.InitOntologySchema(database); err != nil {
+		t.Fatalf("failed to init ontology schema: %v", err)
+	}
+
+	err = database.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_nodes';").Scan(&tableName)
+	if err != nil || tableName != "ontology_nodes" {
+		t.Fatalf("expected ontology_nodes table to exist after InitOntologySchema")
+	}
+
+	err = database.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_edges';").Scan(&tableName)
+	if err != nil || tableName != "ontology_edges" {
+		t.Fatalf("expected ontology_edges table to exist after InitOntologySchema")
+	}
+
+	// 3. Test repo.InitOntologySchema works idempotently
+	repo := store.NewRepository(database)
+	if err := repo.InitOntologySchema(t.Context()); err != nil {
+		t.Fatalf("repo.InitOntologySchema failed: %v", err)
+	}
+}
+

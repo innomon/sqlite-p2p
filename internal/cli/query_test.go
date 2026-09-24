@@ -22,6 +22,10 @@ func TestQueryNodesCLI(t *testing.T) {
 	}
 	defer db.Close()
 
+	if err := store.InitOntologySchema(db); err != nil {
+		t.Fatalf("InitOntologySchema failed: %v", err)
+	}
+
 	repo := store.NewRepository(db)
 	ctx := context.Background()
 
@@ -63,6 +67,10 @@ func TestQueryGraphCLI(t *testing.T) {
 		t.Fatalf("OpenDB failed: %v", err)
 	}
 	defer db.Close()
+
+	if err := store.InitOntologySchema(db); err != nil {
+		t.Fatalf("InitOntologySchema failed: %v", err)
+	}
 
 	repo := store.NewRepository(db)
 	ctx := context.Background()

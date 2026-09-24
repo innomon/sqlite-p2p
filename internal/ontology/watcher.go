@@ -42,6 +42,10 @@ func NewWatcher(dir string, repo *store.Repository) (*Watcher, error) {
 		return nil, fmt.Errorf("failed to create watcher directory %s: %w", dir, err)
 	}
 
+	if err := repo.InitOntologySchema(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to initialize ontology schema: %w", err)
+	}
+
 	fsw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize fsnotify watcher: %w", err)

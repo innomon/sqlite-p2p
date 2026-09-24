@@ -9,6 +9,40 @@ import (
 	"strings"
 )
 
+const ontologySchemaDDL = `
+CREATE TABLE IF NOT EXISTS ontology_nodes (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    type TEXT NOT NULL,
+    metadata TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ontology_edges (
+    source TEXT NOT NULL,
+    target TEXT NOT NULL,
+    relationship TEXT NOT NULL,
+    weight REAL DEFAULT 1.0,
+    metadata TEXT,
+    PRIMARY KEY (source, target, relationship)
+);
+`
+
+// InitOntologySchema creates the ontology_nodes and ontology_edges tables.
+func InitOntologySchema(db *sql.DB) error {
+	if _, err := db.Exec(ontologySchemaDDL); err != nil {
+		return fmt.Errorf("failed to initialize ontology schema: %w", err)
+	}
+	return nil
+}
+
+// InitOntologySchema creates the ontology_nodes and ontology_edges tables using the repository's DB.
+func (r *Repository) InitOntologySchema(ctx context.Context) error {
+	if _, err := r.db.ExecContext(ctx, ontologySchemaDDL); err != nil {
+		return fmt.Errorf("failed to initialize ontology schema: %w", err)
+	}
+	return nil
+}
+
 // Node represents an entity in the ontology graph (e.g. customer, agent, ticket, skill).
 type Node struct {
 	ID       string          `json:"id"`

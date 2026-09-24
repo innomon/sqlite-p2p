@@ -67,6 +67,10 @@ func NewServer(opts ServerOptions) (*Server, error) {
 			return nil, fmt.Errorf("failed to open database at %s: %w", opts.DBPath, err)
 		}
 		dbClose = db.Close
+		if err := store.InitOntologySchema(db); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("failed to init ontology schema: %w", err)
+		}
 		keys, err := crypto.NewKeyRegistry(db)
 		if err != nil {
 			_ = db.Close()

@@ -293,6 +293,9 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 				return err
 			}
 			defer db.Close()
+			if err := store.InitOntologySchema(db); err != nil {
+				return err
+			}
 			repo := store.NewRepository(db)
 
 			nodeType := ""
@@ -344,6 +347,9 @@ func BuildRootCommandWithEngineAndTracker(version string, cfg config.Config, eng
 				return err
 			}
 			defer db.Close()
+			if err := store.InitOntologySchema(db); err != nil {
+				return err
+			}
 			repo := store.NewRepository(db)
 
 			steps, err := repo.TraverseNeighbors(ctx, nodeID, depth)

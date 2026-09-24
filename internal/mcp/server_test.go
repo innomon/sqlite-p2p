@@ -26,6 +26,12 @@ func setupTestDB(t *testing.T) (*store.Repository, *crypto.KeyRegistry, *store.C
 		t.Fatalf("failed to open test db: %v", err)
 	}
 
+	if err := store.InitOntologySchema(db); err != nil {
+		db.Close()
+		os.RemoveAll(tmpDir)
+		t.Fatalf("failed to init ontology schema: %v", err)
+	}
+
 	keys, err := crypto.NewKeyRegistry(db)
 	if err != nil {
 		db.Close()

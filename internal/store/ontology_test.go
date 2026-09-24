@@ -15,6 +15,10 @@ func TestOntologyNodeCRUD(t *testing.T) {
 	}
 	defer db.Close()
 
+	if err := store.InitOntologySchema(db); err != nil {
+		t.Fatalf("failed to init ontology schema: %v", err)
+	}
+
 	repo := store.NewRepository(db)
 	ctx := context.Background()
 
@@ -101,6 +105,10 @@ func TestOntologyEdgeCRUD(t *testing.T) {
 	}
 	defer db.Close()
 
+	if err := store.InitOntologySchema(db); err != nil {
+		t.Fatalf("failed to init ontology schema: %v", err)
+	}
+
 	repo := store.NewRepository(db)
 	ctx := context.Background()
 
@@ -172,6 +180,10 @@ func TestOntologyGraphTraversal(t *testing.T) {
 		t.Fatalf("failed to open memory db: %v", err)
 	}
 	defer db.Close()
+
+	if err := store.InitOntologySchema(db); err != nil {
+		t.Fatalf("failed to init ontology schema: %v", err)
+	}
 
 	repo := store.NewRepository(db)
 	ctx := context.Background()
@@ -253,6 +265,10 @@ func TestOntologyCycleHandling(t *testing.T) {
 		t.Fatalf("failed to open memory db: %v", err)
 	}
 	defer db.Close()
+
+	if err := store.InitOntologySchema(db); err != nil {
+		t.Fatalf("failed to init ontology schema: %v", err)
+	}
 
 	repo := store.NewRepository(db)
 	ctx := context.Background()
