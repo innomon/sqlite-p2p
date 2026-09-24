@@ -29,10 +29,10 @@
 - [x] Task: Conductor - User Manual Verification 'Integrate WhatsaDK Storage Backend into WhatsaDK' (Protocol in workflow.md) (d61fb1b)
 
 ## Phase 4: Final Decoupling, Repository Renaming & Documentation
-- [~] Task: Purge extracted application code from `sqlite-p2p`
-    - [ ] Remove `internal/cli`, `internal/mcp`, `internal/ontology`, `cmd/crm-peer`, and `pkg/whatsadk` from `sqlite-p2p`
-    - [ ] Ensure `sqlite-p2p` tests pass with >80% coverage across all remaining packages
-- [ ] Task: Synchronize Documentation and Quality Gates
+- [x] Task: Purge extracted application code from `sqlite-p2p` (486af14)
+    - [x] Remove `internal/cli`, `internal/mcp`, `internal/ontology`, `cmd/crm-peer`, and `pkg/whatsadk` from `sqlite-p2p`
+    - [x] Ensure `sqlite-p2p` tests pass with >80% coverage across all remaining packages
+- [~] Task: Synchronize Documentation and Quality Gates
     - [ ] Author distinct `README.md` and `ARCHITECTURE.md` for `sqlite-p2p`, `crm-lite`, and WhatsaDK
     - [ ] Run full test suites across all 3 independent projects
 - [ ] Task: Conductor - User Manual Verification 'Final Decoupling, Repository Renaming & Documentation' (Protocol in workflow.md)
