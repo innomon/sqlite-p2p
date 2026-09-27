@@ -12,6 +12,8 @@ import (
 	"sqlite-p2p/internal/p2p"
 
 	"go-pear/pkg/hyperswarm"
+	"go-pear/pkg/policy"
+	"go-pear/pkg/secretstream"
 )
 
 func TestSwarmManagerLifecycle(t *testing.T) {
@@ -143,5 +145,114 @@ func TestSwarmManagerRawConnection(t *testing.T) {
 	sm.OnRawConnection(func(conn net.Conn, peer *hyperswarm.PeerConnection) {
 		// Handler registered
 	})
+}
+
+func TestSwarmManager_ReplicationGating_Whitelist(t *testing.T) {
+	kpA, _ := secretstream.GenerateKeyPair()
+	kpB, _ := secretstream.GenerateKeyPair()
+	kpC, _ := secretstream.GenerateKeyPair()
+
+	polA := policy.New(policy.ModeWhitelist)
+	polA.AddWhitelist(kpB.Public)
+
+	smA, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{
+		Port:    0,
+		KeyPair: kpA,
+		Policy:  polA,
+	})
+	if err != nil {
+		t.Fatalf("smA init failed: %v", err)
+	}
+	defer smA.Close()
+
+	smB, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{
+		Port:    0,
+		KeyPair: kpB,
+	})
+	if err != nil {
+		t.Fatalf("smB init failed: %v", err)
+	}
+	defer smB.Close()
+
+	smC, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{
+		Port:    0,
+		KeyPair: kpC,
+	})
+	if err != nil {
+		t.Fatalf("smC init failed: %v", err)
+	}
+	defer smC.Close()
+
+	// Whitelisted Node B connects to Node A -> Succeeded
+	if err := smB.ConnectDirect("127.0.0.1", smA.Port()); err != nil {
+		t.Fatalf("whitelisted Node B failed to connect to Node A: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	if smA.PeerCount() != 1 {
+		t.Fatalf("expected Node A to have 1 connected peer, got %d", smA.PeerCount())
+	}
+
+	// Unauthorized Node C attempts to connect to Node A -> Rejected
+	_ = smC.ConnectDirect("127.0.0.1", smA.Port())
+	time.Sleep(100 * time.Millisecond)
+
+	if smA.PeerCount() != 1 {
+		t.Fatalf("unauthorized Node C was admitted to Node A; expected 1 peer, got %d", smA.PeerCount())
+	}
+
+	// Outbound dial suppression: Node A dialing Node C directly fails
+	if err := smA.ConnectDirect("127.0.0.1", smC.Port()); err == nil {
+		t.Fatalf("expected outbound dial from Node A to unwhitelisted Node C to fail")
+	}
+}
+
+func TestSwarmManager_ReplicationGating_DynamicEviction(t *testing.T) {
+	kpA, _ := secretstream.GenerateKeyPair()
+	kpB, _ := secretstream.GenerateKeyPair()
+
+	smA, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{
+		Port:    0,
+		KeyPair: kpA,
+	})
+	if err != nil {
+		t.Fatalf("smA init failed: %v", err)
+	}
+	defer smA.Close()
+
+	smB, err := p2p.NewSwarmManager(p2p.SwarmManagerOptions{
+		Port:    0,
+		KeyPair: kpB,
+	})
+	if err != nil {
+		t.Fatalf("smB init failed: %v", err)
+	}
+	defer smB.Close()
+
+	// Node B connects to Node A
+	if err := smB.ConnectDirect("127.0.0.1", smA.Port()); err != nil {
+		t.Fatalf("Node B failed to connect: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	if smA.PeerCount() != 1 {
+		t.Fatalf("expected 1 peer, got %d", smA.PeerCount())
+	}
+
+	// Dynamically switch Node A to blacklist mode banning Node B
+	polBlacklist := policy.New(policy.ModeBlacklist)
+	polBlacklist.AddBlacklist(kpB.Public)
+	smA.SetPolicy(polBlacklist)
+
+	time.Sleep(100 * time.Millisecond)
+
+	if smA.PeerCount() != 0 {
+		t.Fatalf("expected Node A to have 0 peers after dynamic eviction, got %d", smA.PeerCount())
+	}
+
+	// Test DisconnectPeer directly
+	if err := smA.DisconnectPeer(kpB.Public); err != nil {
+		t.Fatalf("DisconnectPeer error: %v", err)
+	}
 }
 

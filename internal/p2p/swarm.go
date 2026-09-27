@@ -8,12 +8,16 @@ import (
 	"sync"
 
 	"go-pear/pkg/hyperswarm"
+	"go-pear/pkg/policy"
+	"go-pear/pkg/secretstream"
 )
 
 // SwarmManagerOptions specifies configuration for a local Hyperswarm peer.
 type SwarmManagerOptions struct {
 	Port      int
 	Bootstrap []string
+	KeyPair   *secretstream.KeyPair
+	Policy    *policy.ReplicationPolicy
 }
 
 // SwarmStats provides runtime metrics for the P2P swarm.
@@ -36,6 +40,7 @@ type SwarmManager struct {
 	activeTopics map[[32]byte]*hyperswarm.PeerDiscovery
 	peerHandlers []PeerConnectionHandler
 	rawHandlers  []RawConnectionHandler
+	policy       *policy.ReplicationPolicy
 	logger       *slog.Logger
 }
 
@@ -46,12 +51,18 @@ func (sm *SwarmManager) SetLogger(l *slog.Logger) {
 	sm.logger = l
 }
 
-
 // NewSwarmManager initializes a new SwarmManager.
 func NewSwarmManager(opts SwarmManagerOptions) (*SwarmManager, error) {
+	pol := opts.Policy
+	if pol == nil {
+		pol = policy.New(policy.ModeAllAllowed)
+	}
+
 	s, err := hyperswarm.New(hyperswarm.SwarmOptions{
-		Port:      opts.Port,
-		Bootstrap: opts.Bootstrap,
+		KeyPair:    opts.KeyPair,
+		Port:       opts.Port,
+		Bootstrap:  opts.Bootstrap,
+		Authorizer: pol.IsAllowed,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create hyperswarm: %w", err)
@@ -60,6 +71,7 @@ func NewSwarmManager(opts SwarmManagerOptions) (*SwarmManager, error) {
 	sm := &SwarmManager{
 		swarm:        s,
 		activeTopics: make(map[[32]byte]*hyperswarm.PeerDiscovery),
+		policy:       pol,
 	}
 
 	s.OnConnection(func(conn net.Conn, peer *hyperswarm.PeerConnection) {
@@ -92,6 +104,66 @@ func (sm *SwarmManager) handleConnection(conn net.Conn, peer *hyperswarm.PeerCon
 	for _, h := range rHandlers {
 		h(conn, peer)
 	}
+}
+
+// Swarm returns the underlying Hyperswarm instance.
+func (sm *SwarmManager) Swarm() *hyperswarm.Swarm {
+	return sm.swarm
+}
+
+// Policy returns the active replication gating policy.
+func (sm *SwarmManager) Policy() *policy.ReplicationPolicy {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	return sm.policy
+}
+
+// SetPolicy dynamically updates the replication gating policy and evicts any disallowed active peers.
+func (sm *SwarmManager) SetPolicy(p *policy.ReplicationPolicy) {
+	if p == nil {
+		p = policy.New(policy.ModeAllAllowed)
+	}
+
+	sm.mu.Lock()
+	sm.policy = p
+	sm.mu.Unlock()
+
+	if sm.swarm != nil {
+		sm.swarm.SetAuthorizer(p.IsAllowed)
+	}
+
+	_ = sm.EvictDisallowed()
+}
+
+// DisconnectPeer terminates any active connection to the specified peer public key.
+func (sm *SwarmManager) DisconnectPeer(remotePK [32]byte) error {
+	if sm.swarm != nil {
+		return sm.swarm.Disconnect(remotePK)
+	}
+	return nil
+}
+
+// EvictDisallowed checks all currently connected peers against the active policy and severs disallowed connections.
+func (sm *SwarmManager) EvictDisallowed() int {
+	sm.mu.RLock()
+	pol := sm.policy
+	sm.mu.RUnlock()
+
+	if pol == nil || sm.swarm == nil {
+		return 0
+	}
+
+	var toEvict [][32]byte
+	for _, pc := range sm.swarm.Connections() {
+		if pc != nil && !pol.IsAllowed(pc.RemotePublicKey) {
+			toEvict = append(toEvict, pc.RemotePublicKey)
+		}
+	}
+
+	for _, pk := range toEvict {
+		_ = sm.swarm.Disconnect(pk)
+	}
+	return len(toEvict)
 }
 
 // Port returns the active TCP/DHT listening port.
