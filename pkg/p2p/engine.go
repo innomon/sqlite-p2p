@@ -11,6 +11,8 @@ import (
 	"sync"
 
 	"go-pear/pkg/hyperswarm"
+	"go-pear/pkg/policy"
+	"go-pear/pkg/secretstream"
 	"sqlite-p2p/internal/crypto"
 	internalp2p "sqlite-p2p/internal/p2p"
 	"sqlite-p2p/internal/store"
@@ -25,6 +27,8 @@ type EngineOptions struct {
 	SwarmTopic   [32]byte
 	SwarmPort    int
 	Bootstrap    []string
+	KeyPair      *secretstream.KeyPair
+	Policy       *policy.ReplicationPolicy
 	KeyRegistry  *crypto.KeyRegistry
 	Logger       *slog.Logger
 }
@@ -123,6 +127,8 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 		swarmMgr, err := internalp2p.NewSwarmManager(internalp2p.SwarmManagerOptions{
 			Port:      opts.SwarmPort,
 			Bootstrap: opts.Bootstrap,
+			KeyPair:   opts.KeyPair,
+			Policy:    opts.Policy,
 		})
 		if err != nil {
 			if ownsDB {
@@ -193,6 +199,45 @@ func (e *Engine) ChangesetFeed() *internalp2p.ChangesetFeed {
 // Swarm returns the internal p2p.SwarmManager instance, if initialized.
 func (e *Engine) Swarm() *internalp2p.SwarmManager {
 	return e.swarm
+}
+
+// Policy returns the active replication gating policy if P2P swarm is enabled.
+func (e *Engine) Policy() *policy.ReplicationPolicy {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.swarm == nil {
+		return nil
+	}
+	return e.swarm.Policy()
+}
+
+// SetPolicy dynamically sets the replication gating policy and evicts disallowed peers.
+func (e *Engine) SetPolicy(p *policy.ReplicationPolicy) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.swarm != nil {
+		e.swarm.SetPolicy(p)
+	}
+}
+
+// DisconnectPeer terminates any active connection to the specified peer public key.
+func (e *Engine) DisconnectPeer(remotePK [32]byte) error {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.swarm == nil {
+		return nil
+	}
+	return e.swarm.DisconnectPeer(remotePK)
+}
+
+// EvictDisallowed checks all currently connected peers against the active policy and disconnects disallowed peers.
+func (e *Engine) EvictDisallowed() int {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.swarm == nil {
+		return 0
+	}
+	return e.swarm.EvictDisallowed()
 }
 
 // Put writes or upserts a record into the repository and triggers changeset tracking.

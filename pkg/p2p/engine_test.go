@@ -7,6 +7,9 @@ import (
 
 	"sqlite-p2p/internal/store"
 	"sqlite-p2p/pkg/p2p"
+
+	"go-pear/pkg/policy"
+	"go-pear/pkg/secretstream"
 )
 
 func TestEngine_Lifecycle(t *testing.T) {
@@ -188,3 +191,63 @@ func TestEngine_WithSwarmTopic(t *testing.T) {
 		t.Fatalf("Delete with replication failed: %v", err)
 	}
 }
+
+func TestEngine_ReplicationPolicy(t *testing.T) {
+	var topic [32]byte
+	copy(topic[:], "test-engine-policy-topic-1234567")
+
+	kp, _ := secretstream.GenerateKeyPair()
+	kpAllowed, _ := secretstream.GenerateKeyPair()
+	kpDenied, _ := secretstream.GenerateKeyPair()
+
+	pol := policy.New(policy.ModeWhitelist)
+	pol.AddWhitelist(kpAllowed.Public)
+
+	opts := p2p.EngineOptions{
+		DBPath:     ":memory:",
+		SwarmTopic: topic,
+		KeyPair:    kp,
+		Policy:     pol,
+	}
+
+	engine, err := p2p.OpenEngine(opts)
+	if err != nil {
+		t.Fatalf("OpenEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	if engine.Policy() == nil {
+		t.Fatal("expected non-nil policy from Engine")
+	}
+
+	if engine.Policy().Mode() != policy.ModeWhitelist {
+		t.Fatalf("expected ModeWhitelist, got %s", engine.Policy().Mode())
+	}
+
+	if !engine.Policy().IsAllowed(kpAllowed.Public) {
+		t.Errorf("expected allowed peer to be permitted")
+	}
+	if engine.Policy().IsAllowed(kpDenied.Public) {
+		t.Errorf("expected denied peer to be rejected")
+	}
+
+	// Dynamic policy mutation
+	newPol := policy.New(policy.ModeAllAllowed)
+	engine.SetPolicy(newPol)
+
+	if engine.Policy().Mode() != policy.ModeAllAllowed {
+		t.Fatalf("expected ModeAllAllowed after SetPolicy, got %s", engine.Policy().Mode())
+	}
+
+	if !engine.Policy().IsAllowed(kpDenied.Public) {
+		t.Errorf("expected denied peer to be permitted in ModeAllAllowed")
+	}
+
+	// DisconnectPeer and EvictDisallowed smoke tests
+	_ = engine.DisconnectPeer(kpDenied.Public)
+	evicted := engine.EvictDisallowed()
+	if evicted != 0 {
+		t.Fatalf("expected 0 evicted peers, got %d", evicted)
+	}
+}
+
