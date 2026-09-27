@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -18,20 +19,22 @@ import (
 	"syscall"
 	"time"
 
+	"go-pear/pkg/policy"
 	"sqlite-p2p/pkg/p2p"
 )
 
 // NodeConfig defines the configuration parameters for a replication node.
 type NodeConfig struct {
-	NodeID       string   `json:"node_id"`
-	SwarmPort    int      `json:"swarm_port"` // 0 = dynamic ephemeral port (Pear P2P default)
-	Bootstrap    []string `json:"bootstrap"`  // HyperDHT bootstrap addresses
-	PeerAddrs    []string `json:"peer_addrs"` // Optional direct peer addresses (e.g. ["192.168.1.100:43219"])
-	DBPath       string   `json:"db_path"`
-	SwarmTopic   string   `json:"swarm_topic"`
-	EnableWAL    bool     `json:"enable_wal"`
-	EnableCrypto bool     `json:"enable_crypto"`
-	AutoSync     bool     `json:"auto_sync"`
+	NodeID       string         `json:"node_id"`
+	SwarmPort    int            `json:"swarm_port"` // 0 = dynamic ephemeral port (Pear P2P default)
+	Bootstrap    []string       `json:"bootstrap"`  // HyperDHT bootstrap addresses
+	PeerAddrs    []string       `json:"peer_addrs"` // Optional direct peer addresses (e.g. ["192.168.1.100:43219"])
+	DBPath       string         `json:"db_path"`
+	SwarmTopic   string         `json:"swarm_topic"`
+	EnableWAL    bool           `json:"enable_wal"`
+	EnableCrypto bool           `json:"enable_crypto"`
+	AutoSync     bool           `json:"auto_sync"`
+	Replication  *policy.Config `json:"replication,omitempty"`
 }
 
 // Command represents a handcrafted CLI or slash command.
@@ -99,6 +102,10 @@ func main() {
 	peerAddr := flag.String("peer", "", "Direct peer address to connect to (e.g. 192.168.1.100:43219)")
 	dbPath := flag.String("db", "", "SQLite database file path (e.g. data/node1.db)")
 	cmdExec := flag.String("cmd", "", "One-shot command to run and exit (e.g. 'put user:1 Alice')")
+	replMode := flag.String("replication-mode", "", "Replication access control mode: all, whitelist, or blacklist")
+	allowPeersFlag := flag.String("allow-peer", "", "Comma-separated peer public keys (hex) to whitelist")
+	denyPeersFlag := flag.String("deny-peer", "", "Comma-separated peer public keys (hex) to blacklist")
+	gateConfigPath := flag.String("gate-config", "", "Path to replication gate JSON configuration file")
 	flag.Parse()
 
 	cfg := NodeConfig{
@@ -140,6 +147,50 @@ func main() {
 		cfg.PeerAddrs = append(cfg.PeerAddrs, *peerAddr)
 	}
 
+	// Build replication gating policy if configured
+	var replPolicy *policy.ReplicationPolicy
+	if *gateConfigPath != "" {
+		gCfg, err := policy.LoadConfigFile(*gateConfigPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading gate config %s: %v\n", *gateConfigPath, err)
+			os.Exit(1)
+		}
+		if *replMode != "" {
+			gCfg.Mode = *replMode
+		}
+		if *allowPeersFlag != "" {
+			gCfg.Whitelist = append(gCfg.Whitelist, strings.Split(*allowPeersFlag, ",")...)
+		}
+		if *denyPeersFlag != "" {
+			gCfg.Blacklist = append(gCfg.Blacklist, strings.Split(*denyPeersFlag, ",")...)
+		}
+		replPolicy, err = policy.NewFromConfig(gCfg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid gate config: %v\n", err)
+			os.Exit(1)
+		}
+	} else if *replMode != "" || *allowPeersFlag != "" || *denyPeersFlag != "" || cfg.Replication != nil {
+		gCfg := cfg.Replication
+		if gCfg == nil {
+			gCfg = &policy.Config{}
+		}
+		if *replMode != "" {
+			gCfg.Mode = *replMode
+		}
+		if *allowPeersFlag != "" {
+			gCfg.Whitelist = append(gCfg.Whitelist, strings.Split(*allowPeersFlag, ",")...)
+		}
+		if *denyPeersFlag != "" {
+			gCfg.Blacklist = append(gCfg.Blacklist, strings.Split(*denyPeersFlag, ",")...)
+		}
+		var err error
+		replPolicy, err = policy.NewFromConfig(gCfg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid replication policy: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
 	// Ensure DB directory exists
 	if dir := filepath.Dir(cfg.DBPath); dir != "." && dir != "" {
 		_ = os.MkdirAll(dir, 0o755)
@@ -170,6 +221,7 @@ func main() {
 		SwarmTopic:   topicHash,
 		SwarmPort:    cfg.SwarmPort,
 		Bootstrap:    cfg.Bootstrap,
+		Policy:       replPolicy,
 		Logger:       logger,
 	})
 	if err != nil {
@@ -177,6 +229,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer engine.Close()
+
+	if replPolicy != nil {
+		logger.Info("replication gating active",
+			"mode", replPolicy.Mode(),
+			"whitelisted", len(replPolicy.WhitelistKeys()),
+			"blacklisted", len(replPolicy.BlacklistKeys()))
+	}
 
 	app := &ReplicationApp{
 		cfg:      cfg,
@@ -511,6 +570,80 @@ func (a *ReplicationApp) initCommands() {
 			dur := time.Since(start)
 			fmt.Printf("Auto-test completed: %d records written and replicated in %v (avg %v/op)\n", count, dur, dur/time.Duration(count))
 			return nil
+		},
+	})
+
+	cr.Register(Command{
+		Name:        "gate",
+		Usage:       "gate [status|set-mode <mode>|allow <hex-pk>|deny <hex-pk>|list]",
+		Description: "Inspect and manage replication gating policy",
+		Run: func(ctx context.Context, app *ReplicationApp, args []string) error {
+			pol := app.engine.Policy()
+			if pol == nil {
+				fmt.Println("No replication policy configured.")
+				return nil
+			}
+			if len(args) == 0 || args[0] == "status" {
+				mode := pol.Mode()
+				wkeys := pol.WhitelistKeys()
+				bkeys := pol.BlacklistKeys()
+				fmt.Printf("Replication Gate Mode: %s\n", mode)
+				fmt.Printf("Whitelisted Peers: %d, Blacklisted Peers: %d\n", len(wkeys), len(bkeys))
+				return nil
+			}
+			switch args[0] {
+			case "list":
+				mode := pol.Mode()
+				wkeys := pol.WhitelistKeys()
+				bkeys := pol.BlacklistKeys()
+				fmt.Printf("Gate Mode: %s\n", mode)
+				fmt.Println("Whitelisted Peers:")
+				for _, p := range wkeys {
+					fmt.Printf("  + %s\n", hex.EncodeToString(p[:]))
+				}
+				fmt.Println("Blacklisted Peers:")
+				for _, p := range bkeys {
+					fmt.Printf("  - %s\n", hex.EncodeToString(p[:]))
+				}
+				return nil
+			case "set-mode":
+				if len(args) < 2 {
+					return fmt.Errorf("usage: gate set-mode <all|whitelist|blacklist>")
+				}
+				mode, err := policy.NormalizeMode(args[1])
+				if err != nil {
+					return err
+				}
+				pol.SetMode(mode)
+				evicted := app.engine.EvictDisallowed()
+				fmt.Printf("Replication mode set to %s (evicted %d non-conforming peers)\n", mode, evicted)
+				return nil
+			case "allow", "whitelist":
+				if len(args) < 2 {
+					return fmt.Errorf("usage: gate allow <hex-pk>")
+				}
+				pk, err := policy.ParseHexKey(args[1])
+				if err != nil {
+					return err
+				}
+				pol.AddWhitelist(pk)
+				fmt.Printf("Peer %s added to whitelist\n", hex.EncodeToString(pk[:]))
+				return nil
+			case "deny", "blacklist":
+				if len(args) < 2 {
+					return fmt.Errorf("usage: gate deny <hex-pk>")
+				}
+				pk, err := policy.ParseHexKey(args[1])
+				if err != nil {
+					return err
+				}
+				pol.AddBlacklist(pk)
+				_ = app.engine.DisconnectPeer(pk)
+				fmt.Printf("Peer %s added to blacklist and disconnected\n", hex.EncodeToString(pk[:]))
+				return nil
+			default:
+				return fmt.Errorf("unknown gate sub-command: %s", args[0])
+			}
 		},
 	})
 

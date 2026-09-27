@@ -44,6 +44,7 @@ type Engine struct {
 	feed        *internalp2p.ChangesetFeed
 	replicator  *internalp2p.Replicator
 	swarm       *internalp2p.SwarmManager
+	policy      *policy.ReplicationPolicy
 	keys        *crypto.KeyRegistry
 	logger      *slog.Logger
 	mu          sync.RWMutex
@@ -94,6 +95,7 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 		tracker: tracker,
 		keys:    keys,
 		logger:  opts.Logger,
+		policy:  opts.Policy,
 	}
 
 	// Initialize P2P replication if a cluster topic is specified
@@ -201,20 +203,21 @@ func (e *Engine) Swarm() *internalp2p.SwarmManager {
 	return e.swarm
 }
 
-// Policy returns the active replication gating policy if P2P swarm is enabled.
+// Policy returns the active replication gating policy.
 func (e *Engine) Policy() *policy.ReplicationPolicy {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	if e.swarm == nil {
-		return nil
+	if e.swarm != nil {
+		return e.swarm.Policy()
 	}
-	return e.swarm.Policy()
+	return e.policy
 }
 
 // SetPolicy dynamically sets the replication gating policy and evicts disallowed peers.
 func (e *Engine) SetPolicy(p *policy.ReplicationPolicy) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.policy = p
 	if e.swarm != nil {
 		e.swarm.SetPolicy(p)
 	}

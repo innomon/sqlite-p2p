@@ -11,5 +11,5 @@
 - [x] Task 2.3: Add unit tests in `pkg/p2p/engine_test.go` verifying replication gating on the high-level Engine.
 
 ## Phase 3: E2E CLI Flags & Verification
-- [ ] Task 3.1: Wire `--replication-mode`, `--allow-peer`, `--deny-peer`, and `--gate-config` flags into `cmd/e2e-replication/main.go`.
-- [ ] Task 3.2: Run full test suite (`go test ./...`) and verify clean build.
+- [x] Task 3.1: Wire `--replication-mode`, `--allow-peer`, `--deny-peer`, and `--gate-config` flags into `cmd/e2e-replication/main.go`.
+- [x] Task 3.2: Run full test suite (`go test ./...`) and verify clean build.

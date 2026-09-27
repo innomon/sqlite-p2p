@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"go-pear/pkg/policy"
 	"sqlite-p2p/pkg/p2p"
 )
 
@@ -167,5 +168,69 @@ func TestConfigFileLoading(t *testing.T) {
 	}
 	if len(parsed.PeerAddrs) != 1 || parsed.PeerAddrs[0] != "127.0.0.1:9098" {
 		t.Fatalf("unexpected peer_addrs: %+v", parsed.PeerAddrs)
+	}
+}
+
+func TestReplicationApp_GateCommands(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test_gate.db")
+
+	pol := policy.New(policy.ModeAllAllowed)
+	engine, err := p2p.OpenEngine(p2p.EngineOptions{
+		DBPath:    dbPath,
+		EnableWAL: true,
+		Policy:    pol,
+	})
+	if err != nil {
+		t.Fatalf("OpenEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	app := &ReplicationApp{
+		cfg: NodeConfig{
+			NodeID: "test-gate-node",
+			DBPath: dbPath,
+		},
+		engine:   engine,
+		registry: NewCommandRegistry(),
+		stopChan: make(chan struct{}),
+	}
+	app.initCommands()
+
+	ctx := context.Background()
+
+	// gate status
+	if err := app.registry.Execute(ctx, app, "gate status"); err != nil {
+		t.Fatalf("gate status failed: %v", err)
+	}
+
+	// gate set-mode whitelist
+	if err := app.registry.Execute(ctx, app, "gate set-mode whitelist"); err != nil {
+		t.Fatalf("gate set-mode failed: %v", err)
+	}
+	if pol.Mode() != policy.ModeWhitelist {
+		t.Fatalf("expected ModeWhitelist, got %s", pol.Mode())
+	}
+
+	// gate allow valid hex
+	fakeHexKey := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	if err := app.registry.Execute(ctx, app, "gate allow "+fakeHexKey); err != nil {
+		t.Fatalf("gate allow failed: %v", err)
+	}
+	if len(pol.WhitelistKeys()) != 1 {
+		t.Fatalf("expected 1 whitelisted key, got %d", len(pol.WhitelistKeys()))
+	}
+
+	// gate list
+	if err := app.registry.Execute(ctx, app, "gate list"); err != nil {
+		t.Fatalf("gate list failed: %v", err)
+	}
+
+	// gate deny
+	if err := app.registry.Execute(ctx, app, "gate deny "+fakeHexKey); err != nil {
+		t.Fatalf("gate deny failed: %v", err)
+	}
+	if len(pol.BlacklistKeys()) != 1 {
+		t.Fatalf("expected 1 blacklisted key, got %d", len(pol.BlacklistKeys()))
 	}
 }
