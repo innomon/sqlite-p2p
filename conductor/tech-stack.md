@@ -15,6 +15,7 @@
   - **Hypercore**: Append-only cryptographic data feeds with Merkle tree verification.
   - **Hyperswarm & HyperDHT**: Distributed peer discovery, holepunching, and P2P connection multiplexing over 32-byte swarm topics.
   - **Autobase**: Multi-writer consensus, vector clock tracking, and causal linearization of peer changeset streams.
+  - **Replication Gating & Access Control (`go-pear/pkg/policy`)**: Thread-safe dynamic peer authorization engine supporting `all`, `whitelist`, and `blacklist` modes with real-time peer eviction and JSON configuration file persistence.
 
 ## 4. CLI & Configuration Framework
 - **Command Architecture**: Handcrafted command/subcommand dispatch registry (strictly no `spf13/cobra` or `pflag`).

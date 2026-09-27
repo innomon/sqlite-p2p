@@ -4,8 +4,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] [Replication Gating & Swarm Access Control in SwarmManager & Engine](./tracks/p2p_replication_gating/index.md) (Status: In Progress)
-
 ## Archived Tracks
 All completed tracks have been archived to [conductor/archive/](./archive/).
+
+- [x] [Replication Gating & Swarm Access Control in SwarmManager & Engine](./archive/p2p_replication_gating_20260927/index.md) (Status: Complete)
 

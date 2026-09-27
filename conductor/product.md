@@ -25,3 +25,4 @@ A distributed, multi-writer, agentic Customer Relationship Management (CRM) plat
 - **Markdown & Graph Ontology Engine**: Directory watcher parsing YAML frontmatter into localized ontology nodes and edges for contextual graph traversal.
 - **Structured JSON Logging**: Zero-dependency structured JSON logging following standardized enterprise logging schemas.
 - **Model Context Protocol (MCP) Server**: Native MCP runtime (`crm-peer mcp`) exposing customer management, schema registry (`org.schema:*`), ontology traversal, and P2P mesh observability tools over `stdio` and streamable HTTP/SSE.
+- **Replication Gating & Swarm Access Control**: Configurable three-tier peer authorization (all, whitelist, blacklist) integrated into Hyperswarm connection handshake, with real-time dynamic peer eviction and interactive CLI slash command management (`/gate`).
