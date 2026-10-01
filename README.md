@@ -10,6 +10,7 @@ A decentralized, local-first, multi-master SQLite replication engine in Pure Go 
 
 - **Pure Go & Zero-CGO**: Built with `modernc.org/sqlite` and `CGO_ENABLED=0`. Cross-compiles instantly for Linux, macOS, and Windows without dynamic C library dependencies.
 - **Generic Key-Value Storage**: Core `crm_store` table configured with WAL mode, foreign keys, and normal synchronization:
+
   ```sql
   CREATE TABLE IF NOT EXISTS crm_store (
       key TEXT PRIMARY KEY,
@@ -17,6 +18,7 @@ A decentralized, local-first, multi-master SQLite replication engine in Pure Go 
       data BLOB
   ) WITHOUT ROWID;
   ```
+
 - **Automatic Changeset Capture**: Intercepts mutations and generates binary changesets suitable for streaming replication over append-only feeds.
 - **Pear/Holepunch P2P Mesh**: Append-only Hypercore feeds, peer discovery over Hyperswarm DHT topics, and Autobase multi-writer consensus.
 - **Privacy & Crypto-Shredding**: Integrated AES-256-GCM symmetric cipher with per-key registry. Deleting a key executes instant cryptographic shredding while retaining replication causality.
@@ -38,44 +40,44 @@ go get sqlite-p2p
 package main
 
 import (
-	"context"
-	"fmt"
-	"log"
+ "context"
+ "fmt"
+ "log"
 
-	"sqlite-p2p/pkg/p2p"
+ "sqlite-p2p/pkg/p2p"
 )
 
 func main() {
-	ctx := context.Background()
+ ctx := context.Background()
 
-	// 1. Open the P2P Engine
-	engine, err := p2p.OpenEngine(p2p.EngineOptions{
-		DBPath:       "mydata.db",
-		EnableWAL:    true,
-		EnableCrypto: true,
-	})
-	if err != nil {
-		log.Fatalf("failed to open engine: %v", err)
-	}
-	defer engine.Close()
+ // 1. Open the P2P Engine
+ engine, err := p2p.OpenEngine(p2p.EngineOptions{
+  DBPath:       "mydata.db",
+  EnableWAL:    true,
+  EnableCrypto: true,
+ })
+ if err != nil {
+  log.Fatalf("failed to open engine: %v", err)
+ }
+ defer engine.Close()
 
-	// 2. Put record
-	metadata := []byte(`{"type":"document","author":"alice"}`)
-	err = engine.Put(ctx, "doc:001", metadata, []byte("Hello, decentralized world!"))
-	if err != nil {
-		log.Fatalf("failed to put record: %v", err)
-	}
+ // 2. Put record
+ metadata := []byte(`{"type":"document","author":"alice"}`)
+ err = engine.Put(ctx, "doc:001", metadata, []byte("Hello, decentralized world!"))
+ if err != nil {
+  log.Fatalf("failed to put record: %v", err)
+ }
 
-	// 3. Get record (automatically decrypted)
-	rec, err := engine.Get(ctx, "doc:001")
-	if err != nil {
-		log.Fatalf("failed to get record: %v", err)
-	}
-	fmt.Printf("Key: %s, Data: %s\n", rec.Key, string(rec.Data))
+ // 3. Get record (automatically decrypted)
+ rec, err := engine.Get(ctx, "doc:001")
+ if err != nil {
+  log.Fatalf("failed to get record: %v", err)
+ }
+ fmt.Printf("Key: %s, Data: %s\n", rec.Key, string(rec.Data))
 
-	// 4. Access underlying database if needed
-	db := engine.DB()
-	_ = db.Ping()
+ // 4. Access underlying database if needed
+ db := engine.DB()
+ _ = db.Ping()
 }
 ```
 
@@ -117,3 +119,10 @@ All packages enforce >80% test coverage with 100% passing tests:
 # Run all tests with coverage
 go test -v -cover ./...
 ```
+
+---
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](file:///home/innomon/B204-zone/owly-sewa/sqlite-p2p/LICENSE) file for details.
+
