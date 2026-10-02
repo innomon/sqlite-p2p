@@ -16,6 +16,7 @@ import (
 	"sqlite-p2p/internal/crypto"
 	internalp2p "sqlite-p2p/internal/p2p"
 	"sqlite-p2p/internal/store"
+	"sqlite-p2p/pkg/config"
 )
 
 // EngineOptions configures the decentralized sqlite-p2p engine.
@@ -161,6 +162,44 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 	}
 
 	return engine, nil
+}
+
+// OpenEngineFromConfig loads a NodeConfig from a JSON file and initializes an Engine instance.
+func OpenEngineFromConfig(path string) (*Engine, error) {
+	cfg, err := config.LoadConfigFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load engine config: %w", err)
+	}
+	return OpenEngineFromNodeConfig(cfg)
+}
+
+// OpenEngineFromNodeConfig initializes an Engine instance using a NodeConfig struct.
+func OpenEngineFromNodeConfig(cfg *config.NodeConfig) (*Engine, error) {
+	if cfg == nil {
+		return nil, errors.New("node config cannot be nil")
+	}
+
+	pol, err := cfg.BuildPolicy()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build replication policy: %w", err)
+	}
+
+	var topic [32]byte
+	if cfg.SwarmTopic != "" {
+		copy(topic[:], []byte(cfg.SwarmTopic))
+	}
+
+	opts := EngineOptions{
+		DBPath:       cfg.DBPath,
+		EnableWAL:    cfg.EnableWAL,
+		EnableCrypto: cfg.EnableCrypto,
+		SwarmTopic:   topic,
+		SwarmPort:    cfg.SwarmPort,
+		Bootstrap:    cfg.Bootstrap,
+		Policy:       pol,
+	}
+
+	return OpenEngine(opts)
 }
 
 // DB returns the underlying sql.DB instance.

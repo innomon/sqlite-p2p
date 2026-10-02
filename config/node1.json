@@ -7,5 +7,10 @@
   "db_path": "data/node1.db",
   "enable_wal": true,
   "enable_crypto": false,
-  "auto_sync": true
+  "auto_sync": true,
+  "replication": {
+    "mode": "all",
+    "whitelist": [],
+    "blacklist": []
+  }
 }

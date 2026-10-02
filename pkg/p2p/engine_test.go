@@ -3,6 +3,7 @@ package p2p_test
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"testing"
 
 	"sqlite-p2p/internal/store"
@@ -250,4 +251,36 @@ func TestEngine_ReplicationPolicy(t *testing.T) {
 		t.Fatalf("expected 0 evicted peers, got %d", evicted)
 	}
 }
+
+func TestEngine_OpenFromConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfgFile := tmpDir + "/node.json"
+	content := []byte(`{
+		"node_id": "config-engine-node",
+		"swarm_topic": "config-engine-topic",
+		"db_path": ":memory:",
+		"enable_wal": false,
+		"replication": {
+			"mode": "whitelist",
+			"whitelist": ["3333333333333333333333333333333333333333333333333333333333333333"]
+		}
+	}`)
+	if err := os.WriteFile(cfgFile, content, 0644); err != nil {
+		t.Fatalf("failed to write test config: %v", err)
+	}
+
+	engine, err := p2p.OpenEngineFromConfig(cfgFile)
+	if err != nil {
+		t.Fatalf("OpenEngineFromConfig failed: %v", err)
+	}
+	defer engine.Close()
+
+	if engine.Policy() == nil {
+		t.Fatal("expected non-nil policy from Engine")
+	}
+	if engine.Policy().Mode() != policy.ModeWhitelist {
+		t.Fatalf("expected ModeWhitelist, got %s", engine.Policy().Mode())
+	}
+}
+
 
