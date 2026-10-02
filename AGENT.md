@@ -2,12 +2,13 @@
 
 This guide provides instructions for AI coding agents and autonomous developer harnesses (Cursor, Claude, Goose, Antigravity) integrating or working with the **`sqlite-p2p`** decentralized storage engine.
 
+**Rule**: always use project relative paths, avoid absolute path, if needed create an environment variable, example, `$ROOT=~/projects` and save to `.env`  
+
 > [!NOTE]
 > If you are looking for the **Multimodal CRM Agent & MCP Server**, that functionality has been factored into the standalone [`crm-lite`]($PROJECT_ROOT/crm-lite) repository. See `crm-lite/AGENT.md` for CRM MCP tools.
 
 ---
 
-**Rule**: always use project relative paths, avoid absolute path, if needed create an environment variable, example, `$ROOT=~/projects` and save to `.env`  
 
 ## 1. Library Overview
 
