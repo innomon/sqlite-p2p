@@ -3,13 +3,16 @@
 This guide provides instructions for AI coding agents and autonomous developer harnesses (Cursor, Claude, Goose, Antigravity) integrating or working with the **`sqlite-p2p`** decentralized storage engine.
 
 > [!NOTE]
-> If you are looking for the **Multimodal CRM Agent & MCP Server**, that functionality has been factored into the standalone [`crm-lite`](/home/innomon/B204-zone/owly-sewa/crm-lite) repository. See `crm-lite/AGENT.md` for CRM MCP tools.
+> If you are looking for the **Multimodal CRM Agent & MCP Server**, that functionality has been factored into the standalone [`crm-lite`]($PROJECT_ROOT/crm-lite) repository. See `crm-lite/AGENT.md` for CRM MCP tools.
 
 ---
+
+**Rule**: always use project relative paths, avoid absolute path, if needed create an environment variable, example, `$ROOT=~/projects` and save to `.env`  
 
 ## 1. Library Overview
 
 `sqlite-p2p` is a pure Go (`CGO_ENABLED=0`) decentralized SQLite database engine that provides:
+
 - **Local SQLite Store**: Powered by `modernc.org/sqlite` with WAL mode enabled.
 - **Peer-to-Peer Replication**: Powered by pure Go Holepunch/Pear protocols (Autobase changeset linearization and Hyperswarm DHT discovery).
 - **Cryptographic Shredding**: Per-record AES-256-GCM encryption with key purging for mathematical right-to-be-forgotten on append-only feeds.
@@ -28,7 +31,7 @@ In your `go.mod`:
 ```go
 require sqlite-p2p v0.0.0
 
-replace sqlite-p2p => /home/innomon/B204-zone/owly-sewa/sqlite-p2p
+replace sqlite-p2p => $PROJECT_ROOT/sqlite-p2p
 ```
 
 ### Step 2: Initialize Engine

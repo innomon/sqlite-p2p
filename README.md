@@ -124,5 +124,5 @@ go test -v -cover ./...
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](file:///home/innomon/B204-zone/owly-sewa/sqlite-p2p/LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 

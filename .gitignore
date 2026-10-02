@@ -6,4 +6,6 @@ bin/
 coverage.out
 data/
 *.hypercore
+.env
+**/.env
 
