@@ -10,6 +10,6 @@
 - [x] Task 2.3: Update JSON configuration templates in `/config/config.example.json`, `/config/node1.json`, `/config/node2.json`, `/config/node-mac-m4.json`, `/config/node-rpi4.json`, and `/config/node-rpi5.json` with sample replication gating blocks. [cbe01a2]
 
 ## Phase 3: CLI Gating Management & E2E Verification
-- [ ] Task 3.1: Refactor `/cmd/e2e-replication/main.go` to use `/pkg/config` and add interactive slash commands (`/gating status`, `/gating set-mode`, `/gating allow`, `/gating deny`, `/gating evict`).
-- [ ] Task 3.2: Add unit/integration tests in `/cmd/e2e-replication/main_test.go` for gating configuration flags and slash commands.
-- [ ] Task 3.3: Execute full automated test suite (`go test ./...`) and verify clean build.
+- [x] Task 3.1: Refactor `/cmd/e2e-replication/main.go` to use `/pkg/config` and add interactive slash commands (`/gating status`, `/gating set-mode`, `/gating allow`, `/gating deny`, `/gating evict`). [a4bf2a7]
+- [x] Task 3.2: Add unit/integration tests in `/cmd/e2e-replication/main_test.go` for gating configuration flags and slash commands. [a4bf2a7]
+- [x] Task 3.3: Execute full automated test suite (`go test ./...`) and verify clean build. [a4bf2a7]
