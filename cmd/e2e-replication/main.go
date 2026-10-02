@@ -20,22 +20,12 @@ import (
 	"time"
 
 	"go-pear/pkg/policy"
+	"sqlite-p2p/pkg/config"
 	"sqlite-p2p/pkg/p2p"
 )
 
-// NodeConfig defines the configuration parameters for a replication node.
-type NodeConfig struct {
-	NodeID       string         `json:"node_id"`
-	SwarmPort    int            `json:"swarm_port"` // 0 = dynamic ephemeral port (Pear P2P default)
-	Bootstrap    []string       `json:"bootstrap"`  // HyperDHT bootstrap addresses
-	PeerAddrs    []string       `json:"peer_addrs"` // Optional direct peer addresses (e.g. ["192.168.1.100:43219"])
-	DBPath       string         `json:"db_path"`
-	SwarmTopic   string         `json:"swarm_topic"`
-	EnableWAL    bool           `json:"enable_wal"`
-	EnableCrypto bool           `json:"enable_crypto"`
-	AutoSync     bool           `json:"auto_sync"`
-	Replication  *policy.Config `json:"replication,omitempty"`
-}
+// NodeConfig aliases config.NodeConfig.
+type NodeConfig = config.NodeConfig
 
 // Command represents a handcrafted CLI or slash command.
 type Command struct {
@@ -641,10 +631,22 @@ func (a *ReplicationApp) initCommands() {
 				_ = app.engine.DisconnectPeer(pk)
 				fmt.Printf("Peer %s added to blacklist and disconnected\n", hex.EncodeToString(pk[:]))
 				return nil
+			case "evict":
+				evicted := app.engine.EvictDisallowed()
+				fmt.Printf("Evicted %d non-conforming peers\n", evicted)
+				return nil
 			default:
 				return fmt.Errorf("unknown gate sub-command: %s", args[0])
 			}
 		},
+	})
+
+	gateCmd := cr.commands["gate"]
+	cr.Register(Command{
+		Name:        "gating",
+		Usage:       "gating [status|set-mode <mode>|allow <hex-pk>|deny <hex-pk>|evict|list]",
+		Description: "Inspect and manage replication gating policy (alias to gate)",
+		Run:         gateCmd.Run,
 	})
 
 	exitCmd := Command{

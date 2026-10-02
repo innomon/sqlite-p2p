@@ -233,4 +233,15 @@ func TestReplicationApp_GateCommands(t *testing.T) {
 	if len(pol.BlacklistKeys()) != 1 {
 		t.Fatalf("expected 1 blacklisted key, got %d", len(pol.BlacklistKeys()))
 	}
+
+	// slash command gating status
+	if err := app.registry.Execute(ctx, app, "/gating status"); err != nil {
+		t.Fatalf("/gating status failed: %v", err)
+	}
+
+	// slash command gating evict
+	if err := app.registry.Execute(ctx, app, "/gating evict"); err != nil {
+		t.Fatalf("/gating evict failed: %v", err)
+	}
 }
+
