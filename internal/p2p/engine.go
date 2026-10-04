@@ -251,3 +251,84 @@ func (e *ReplicationEngine) SyncPeers(ctx context.Context) (int, error) {
 	return count, nil
 }
 
+// SeedFromRepository imports existing SQLite records into timestamps and the ChangesetFeed if the feed is empty.
+func (e *ReplicationEngine) SeedFromRepository(ctx context.Context) (int, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.repo == nil {
+		return 0, nil
+	}
+
+	records, err := e.repo.List(ctx, "", 100000, 0)
+	if err != nil {
+		return 0, fmt.Errorf("seed from repository: %w", err)
+	}
+
+	for _, rec := range records {
+		var ts int64
+		if len(rec.Metadata) > 0 {
+			var m map[string]interface{}
+			if err := json.Unmarshal(rec.Metadata, &m); err == nil {
+				if tsStr, ok := m["_tmstamp"].(string); ok {
+					if t, err := time.Parse(time.RFC3339Nano, tsStr); err == nil {
+						ts = t.UnixNano()
+					} else if t, err := time.Parse(time.RFC3339, tsStr); err == nil {
+						ts = t.UnixNano()
+					}
+				}
+			}
+		}
+		if ts <= 0 {
+			ts = time.Now().UnixNano()
+		}
+		if existing, ok := e.timestamps[rec.Key]; !ok || ts > existing {
+			e.timestamps[rec.Key] = ts
+		}
+	}
+
+	if e.feed == nil || e.feed.Len() > 0 {
+		return 0, nil
+	}
+
+	count := 0
+	for _, rec := range records {
+		var ts int64
+		if len(rec.Metadata) > 0 {
+			var m map[string]interface{}
+			if err := json.Unmarshal(rec.Metadata, &m); err == nil {
+				if tsStr, ok := m["_tmstamp"].(string); ok {
+					if t, err := time.Parse(time.RFC3339Nano, tsStr); err == nil {
+						ts = t.UnixNano()
+					} else if t, err := time.Parse(time.RFC3339, tsStr); err == nil {
+						ts = t.UnixNano()
+					}
+				}
+			}
+		}
+		if ts <= 0 {
+			ts = time.Now().UnixNano()
+		}
+		cs := &store.Changeset{
+			Timestamp: ts,
+			Sequence:  uint64(ts),
+			Operation: store.OpInsert,
+			Key:       rec.Key,
+			Metadata:  rec.Metadata,
+			Data:      rec.Data,
+		}
+		if e.autobase != nil {
+			_, _ = e.autobase.Append(cs)
+		} else {
+			_, _ = e.feed.Append(cs)
+		}
+		count++
+	}
+
+	if e.logger != nil && count > 0 {
+		e.logger.Info("seeded feed from repository", "count", count)
+	}
+	return count, nil
+}
+
+

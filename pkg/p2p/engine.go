@@ -3,12 +3,16 @@ package p2p
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"go-pear/pkg/hyperswarm"
 	"go-pear/pkg/policy"
@@ -101,6 +105,18 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 
 	// Initialize P2P replication if a cluster topic is specified
 	if opts.SwarmTopic != [32]byte{} {
+		topicHex := hex.EncodeToString(opts.SwarmTopic[:])
+
+		// Auto-discover existing local bootstrap if none provided
+		if len(opts.Bootstrap) == 0 {
+			discCtx, discCancel := context.WithTimeout(context.Background(), 750*time.Millisecond)
+			lanPeer, err := internalp2p.DiscoverLANBootstrap(discCtx, "sqlite-p2p", topicHex, internalp2p.DefaultBeaconPort, 600*time.Millisecond)
+			discCancel()
+			if err == nil && lanPeer != "" {
+				opts.Bootstrap = append(opts.Bootstrap, lanPeer)
+			}
+		}
+
 		feedDir := ""
 		if opts.DBPath != ":memory:" && opts.DBPath != "" {
 			feedDir = opts.DBPath + ".hypercore"
@@ -127,6 +143,9 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 			return replEngine.ApplyRemoteChangeset(context.Background(), cs)
 		})
 
+		// Backfill/seed any existing records from SQLite repository into changeset feed
+		_, _ = replEngine.SeedFromRepository(context.Background())
+
 		swarmMgr, err := internalp2p.NewSwarmManager(internalp2p.SwarmManagerOptions{
 			Port:      opts.SwarmPort,
 			Bootstrap: opts.Bootstrap,
@@ -144,7 +163,6 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 		}
 
 		swarmMgr.OnRawConnection(func(conn net.Conn, peer *hyperswarm.PeerConnection) {
-			replicator.AddPeer(conn)
 			go replicator.HandleConnection(conn)
 		})
 
@@ -154,6 +172,15 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 			}
 			return nil, fmt.Errorf("failed to join swarm topic: %w", err)
 		}
+
+		// Start background LAN discovery beacon broadcaster
+		routableDHT := internalp2p.NormalizeDHTAddr(swarmMgr.DHTAddr())
+		beaconMsg := internalp2p.BeaconMessage{
+			Cluster: "sqlite-p2p",
+			Topic:   topicHex,
+			DHTAddr: routableDHT,
+		}
+		_ = internalp2p.StartBeaconBroadcaster(context.Background(), beaconMsg, internalp2p.DefaultBeaconPort, 2500*time.Millisecond)
 
 		engine.feed = feed
 		engine.replicator = replicator
@@ -189,17 +216,44 @@ func OpenEngineFromNodeConfig(cfg *config.NodeConfig) (*Engine, error) {
 		copy(topic[:], []byte(cfg.SwarmTopic))
 	}
 
+	var bootstrap []string
+	bootstrap = append(bootstrap, cfg.Bootstrap...)
+	bootstrap = append(bootstrap, cfg.PeerAddrs...)
+
 	opts := EngineOptions{
 		DBPath:       cfg.DBPath,
 		EnableWAL:    cfg.EnableWAL,
 		EnableCrypto: cfg.EnableCrypto,
 		SwarmTopic:   topic,
 		SwarmPort:    cfg.SwarmPort,
-		Bootstrap:    cfg.Bootstrap,
+		Bootstrap:    bootstrap,
 		Policy:       pol,
 	}
 
-	return OpenEngine(opts)
+	engine, err := OpenEngine(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, peerAddr := range cfg.PeerAddrs {
+		peerAddr = strings.TrimSpace(peerAddr)
+		if peerAddr == "" {
+			continue
+		}
+		host, portStr, err := net.SplitHostPort(peerAddr)
+		if err == nil {
+			if port, err := strconv.Atoi(portStr); err == nil && port > 0 {
+				go func(h string, p int) {
+					time.Sleep(500 * time.Millisecond)
+					if engine.Swarm() != nil {
+						_ = engine.Swarm().ConnectDirect(h, p)
+					}
+				}(host, port)
+			}
+		}
+	}
+
+	return engine, nil
 }
 
 // DB returns the underlying sql.DB instance.

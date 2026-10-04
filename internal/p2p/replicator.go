@@ -63,6 +63,31 @@ func (r *Replicator) RemovePeer(conn net.Conn) {
 	r.mu.Unlock()
 }
 
+// syncFeedToPeer sends all existing feed changesets to a newly connected peer.
+func (r *Replicator) syncFeedToPeer(conn net.Conn) {
+	if r.feed == nil {
+		return
+	}
+	total := r.feed.Len()
+	for i := uint64(0); i < total; i++ {
+		cs, err := r.feed.Get(i)
+		if err != nil {
+			continue
+		}
+		raw, err := cs.Encode()
+		if err != nil {
+			continue
+		}
+		length := uint32(len(raw))
+		msg := make([]byte, 4+len(raw))
+		binary.BigEndian.PutUint32(msg[:4], length)
+		copy(msg[4:], raw)
+		if _, err := conn.Write(msg); err != nil {
+			return
+		}
+	}
+}
+
 // HandleConnection takes ownership of a peer connection and reads incoming changesets.
 func (r *Replicator) HandleConnection(conn net.Conn) {
 	r.AddPeer(conn)
@@ -70,6 +95,8 @@ func (r *Replicator) HandleConnection(conn net.Conn) {
 		r.RemovePeer(conn)
 		_ = conn.Close()
 	}()
+
+	go r.syncFeedToPeer(conn)
 
 	for {
 		select {
@@ -84,8 +111,21 @@ func (r *Replicator) HandleConnection(conn net.Conn) {
 			return
 		}
 
-		if length == 0 || length > 10*1024*1024 { // max 10MB per changeset
-			return
+		if length == 0 {
+			continue
+		}
+
+		const maxChangesetSize = 512 * 1024 * 1024 // 512MB max payload
+		if length > maxChangesetSize {
+			if r.logger != nil {
+				r.logger.Warn("skipping oversized changeset payload",
+					"event", "oversized_changeset_skipped",
+					"length", length,
+					"max_limit", maxChangesetSize,
+				)
+			}
+			_, _ = io.CopyN(io.Discard, conn, int64(length))
+			continue
 		}
 
 		buf := make([]byte, length)
@@ -112,11 +152,6 @@ func (r *Replicator) HandleConnection(conn net.Conn) {
 				"operation", cs.Operation,
 				"timestamp", cs.Timestamp,
 			)
-		}
-
-		// Record to local feed if not already present
-		if r.feed != nil {
-			_, _ = r.feed.Append(cs)
 		}
 
 		// Dispatch to handler (e.g. Autobase / SQLite apply)

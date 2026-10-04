@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -135,12 +136,21 @@ func DiscoverLANBootstrap(ctx context.Context, cluster, topic string, port int, 
 		timeout = 1500 * time.Millisecond
 	}
 
-	listenAddr := &net.UDPAddr{
-		IP:   net.IPv4zero,
-		Port: port,
+	lc := net.ListenConfig{
+		Control: func(network, address string, c syscall.RawConn) error {
+			var opErr error
+			err := c.Control(func(fd uintptr) {
+				opErr = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, 15 /* SO_REUSEPORT */, 1)
+				_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+			})
+			if err != nil {
+				return err
+			}
+			return opErr
+		},
 	}
 
-	conn, err := net.ListenUDP("udp4", listenAddr)
+	conn, err := lc.ListenPacket(ctx, "udp4", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		return "", fmt.Errorf("failed to listen on beacon port %d: %w", port, err)
 	}
