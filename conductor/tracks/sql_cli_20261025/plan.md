@@ -13,7 +13,7 @@
     - [x] Implement multi-statement parser and transactional SQL execution helper
 - [x] Task: Conductor - User Manual Verification 'Core SQL Executor & Result Formatter Implementation' (Protocol in workflow.md)
 
-## Phase 2: Handcrafted CLI Command Integration & Argument Parsing
+## Phase 2: Handcrafted CLI Command Integration & Argument Parsing [checkpoint: e5ea92d]
 
 - [x] Task: Write Unit Tests for `sql` & `/sql` Command Dispatch and Argument Parsing (TDD Red Phase) [26d945d]
     - [x] Test command registration for both `sql` and `/sql`
@@ -23,7 +23,7 @@
 - [x] Task: Integrate `sql` Command into Handcrafted Command Registry (TDD Green Phase) [20d2536]
     - [x] Implement argument parser and `sql` command handler in `cmd/e2e-replication/main.go`
     - [x] Update `help` command documentation with `sql` / `/sql` usage and examples
-- [ ] Task: Conductor - User Manual Verification 'Handcrafted CLI Command Integration & Argument Parsing' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Handcrafted CLI Command Integration & Argument Parsing' (Protocol in workflow.md)
 
 ## Phase 3: End-to-End Integration & Regression Verification
 
