@@ -15,11 +15,11 @@
 
 ## Phase 2: Handcrafted CLI Command Integration & Argument Parsing
 
-- [ ] Task: Write Unit Tests for `sql` & `/sql` Command Dispatch and Argument Parsing (TDD Red Phase)
-    - [ ] Test command registration for both `sql` and `/sql`
-    - [ ] Test parsing of `--format <fmt>`, `-f <fmt>`, and default fallback to `json`
-    - [ ] Test parsing SQL statements with quotes, spaces, and semicolon separators
-    - [ ] Test execution error output conforming to requested format
+- [x] Task: Write Unit Tests for `sql` & `/sql` Command Dispatch and Argument Parsing (TDD Red Phase) [26d945d]
+    - [x] Test command registration for both `sql` and `/sql`
+    - [x] Test parsing of `--format <fmt>`, `-f <fmt>`, and default fallback to `json`
+    - [x] Test parsing SQL statements with quotes, spaces, and semicolon separators
+    - [x] Test execution error output conforming to requested format
 - [ ] Task: Integrate `sql` Command into Handcrafted Command Registry (TDD Green Phase)
     - [ ] Implement argument parser and `sql` command handler in `cmd/e2e-replication/main.go`
     - [ ] Update `help` command documentation with `sql` / `/sql` usage and examples
