@@ -25,7 +25,7 @@
     - [x] Update `help` command documentation with `sql` / `/sql` usage and examples
 - [x] Task: Conductor - User Manual Verification 'Handcrafted CLI Command Integration & Argument Parsing' (Protocol in workflow.md)
 
-## Phase 3: End-to-End Integration & Regression Verification
+## Phase 3: End-to-End Integration & Regression Verification [checkpoint: 2016867]
 
 - [x] Task: End-to-End CLI & REPL Integration Verification [b624341]
     - [x] Add integration test verifying one-shot `--cmd "sql ..."` execution against running node
@@ -33,4 +33,4 @@
 - [x] Task: Code Coverage & Quality Gate Verification [97c85ab]
     - [x] Run full project test suite and verify >80% code coverage on new code
     - [x] Verify zero external CLI dependencies (pure Go handcrafted registry)
-- [ ] Task: Conductor - User Manual Verification 'End-to-End Integration & Regression Verification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'End-to-End Integration & Regression Verification' (Protocol in workflow.md)
