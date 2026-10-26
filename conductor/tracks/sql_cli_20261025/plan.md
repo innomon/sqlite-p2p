@@ -20,9 +20,9 @@
     - [x] Test parsing of `--format <fmt>`, `-f <fmt>`, and default fallback to `json`
     - [x] Test parsing SQL statements with quotes, spaces, and semicolon separators
     - [x] Test execution error output conforming to requested format
-- [ ] Task: Integrate `sql` Command into Handcrafted Command Registry (TDD Green Phase)
-    - [ ] Implement argument parser and `sql` command handler in `cmd/e2e-replication/main.go`
-    - [ ] Update `help` command documentation with `sql` / `/sql` usage and examples
+- [x] Task: Integrate `sql` Command into Handcrafted Command Registry (TDD Green Phase) [20d2536]
+    - [x] Implement argument parser and `sql` command handler in `cmd/e2e-replication/main.go`
+    - [x] Update `help` command documentation with `sql` / `/sql` usage and examples
 - [ ] Task: Conductor - User Manual Verification 'Handcrafted CLI Command Integration & Argument Parsing' (Protocol in workflow.md)
 
 ## Phase 3: End-to-End Integration & Regression Verification
