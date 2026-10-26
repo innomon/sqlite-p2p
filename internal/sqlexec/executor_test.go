@@ -240,3 +240,124 @@ func TestExecute_MultiStatement_Transaction(t *testing.T) {
 		t.Errorf("expected account 3 to be rolled back, count is %d", count)
 	}
 }
+
+func TestParseFormat(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected OutputFormat
+		wantErr  bool
+	}{
+		{"", FormatJSON, false},
+		{"json", FormatJSON, false},
+		{"JSON", FormatJSON, false},
+		{"table", FormatTable, false},
+		{"TABLE", FormatTable, false},
+		{"csv", FormatCSV, false},
+		{"CSV", FormatCSV, false},
+		{"xml", "", true},
+	}
+
+	for _, tt := range tests {
+		got, err := ParseFormat(tt.input)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("ParseFormat(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			continue
+		}
+		if got != tt.expected {
+			t.Errorf("ParseFormat(%q) = %v, want %v", tt.input, got, tt.expected)
+		}
+	}
+}
+
+func TestExecute_EmptyQuery(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+
+	outJSON, err := Execute(ctx, db, "   -- only comment\n  ;  ", FormatJSON)
+	if err != nil || outJSON != "[]\n" {
+		t.Fatalf("unexpected empty json: %q, err: %v", outJSON, err)
+	}
+
+	outTable, err := Execute(ctx, db, "", FormatTable)
+	if err != nil || outTable != "Empty result set.\n" {
+		t.Fatalf("unexpected empty table: %q, err: %v", outTable, err)
+	}
+
+	outCSV, err := Execute(ctx, db, " ; ", FormatCSV)
+	if err != nil || outCSV != "\n" {
+		t.Fatalf("unexpected empty csv: %q, err: %v", outCSV, err)
+	}
+}
+
+func TestExecute_MultiStatement_TrailingSelect(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+
+	sqlScript := `
+		CREATE TABLE logs (id INT, msg TEXT);
+		INSERT INTO logs VALUES (1, 'hello');
+		SELECT msg FROM logs WHERE id = 1;
+	`
+	out, err := Execute(ctx, db, sqlScript, FormatJSON)
+	if err != nil {
+		t.Fatalf("Execute multi-statement with trailing select failed: %v", err)
+	}
+
+	var rows []map[string]any
+	if err := json.Unmarshal([]byte(out), &rows); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+	if len(rows) != 1 || rows[0]["msg"] != "hello" {
+		t.Fatalf("unexpected result: %v", rows)
+	}
+}
+
+func TestNormalizeValue_Types(t *testing.T) {
+	if normalizeValue(nil) != nil {
+		t.Error("expected nil")
+	}
+	if normalizeValue(int64(42)) != int64(42) {
+		t.Error("expected 42")
+	}
+	if normalizeValue(3.14) != 3.14 {
+		t.Error("expected 3.14")
+	}
+	if normalizeValue(true) != true {
+		t.Error("expected true")
+	}
+	// Binary non-utf8
+	nonUTF8 := []byte{0xff, 0xfe, 0xfd}
+	if normalizeValue(nonUTF8) != "fffefd" {
+		t.Errorf("expected hex fffefd, got %v", normalizeValue(nonUTF8))
+	}
+}
+
+func TestIsQueryStatement_Variants(t *testing.T) {
+	queries := []string{
+		"PRAGMA table_info(users)",
+		"EXPLAIN QUERY PLAN SELECT 1",
+		"WITH temp AS (SELECT 1) SELECT * FROM temp",
+		"VALUES (1), (2)",
+		"-- comment\nSELECT 1",
+	}
+	for _, q := range queries {
+		if !isQueryStatement(q) {
+			t.Errorf("expected isQueryStatement(%q) to be true", q)
+		}
+	}
+
+	nonQueries := []string{
+		"INSERT INTO users VALUES (1)",
+		"UPDATE users SET name = 'a'",
+		"DELETE FROM users",
+		"CREATE TABLE x (id INT)",
+		"DROP TABLE x",
+		"-- only comment without newline",
+		"",
+	}
+	for _, nq := range nonQueries {
+		if isQueryStatement(nq) {
+			t.Errorf("expected isQueryStatement(%q) to be false", nq)
+		}
+	}
+}
