@@ -1,6 +1,6 @@
 # Implementation Plan: Arbitrary SQL Execution CLI Command (`sql` / `/sql`)
 
-## Phase 1: Core SQL Executor & Result Formatter Implementation
+## Phase 1: Core SQL Executor & Result Formatter Implementation [checkpoint: b86617e]
 
 - [x] Task: Write Unit Tests for SQL Result Formatting and Query Detection (TDD Red Phase) [83ee8ff]
     - [x] Create unit tests for JSON formatting (SELECT rows, DML/DDL affected rows, formatted errors)
@@ -11,7 +11,7 @@
     - [x] Implement robust column type scanning and dynamic value mapping (NULL, numbers, text, BLOBs)
     - [x] Implement JSON, Table, and CSV formatters with error output formatting
     - [x] Implement multi-statement parser and transactional SQL execution helper
-- [ ] Task: Conductor - User Manual Verification 'Core SQL Executor & Result Formatter Implementation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Core SQL Executor & Result Formatter Implementation' (Protocol in workflow.md)
 
 ## Phase 2: Handcrafted CLI Command Integration & Argument Parsing
 
