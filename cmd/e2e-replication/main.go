@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"go-pear/pkg/policy"
+	"sqlite-p2p/internal/sqlexec"
 	"sqlite-p2p/pkg/config"
 	"sqlite-p2p/pkg/p2p"
 )
@@ -337,6 +338,57 @@ func (a *ReplicationApp) connectToPeer(ctx context.Context, addr string) {
 	}
 }
 
+// parseSQLArgs extracts format flag and SQL statement from command line arguments.
+func parseSQLArgs(args []string) (sqlexec.OutputFormat, string, error) {
+	if len(args) == 0 {
+		return "", "", fmt.Errorf("usage: sql [--format <json|table|csv>] [-f <json|table|csv>] <SQL STATEMENT>")
+	}
+
+	formatStr := "json"
+	var queryParts []string
+	i := 0
+	for i < len(args) {
+		arg := args[i]
+		if arg == "-f" || arg == "--format" {
+			if i+1 >= len(args) {
+				return "", "", fmt.Errorf("missing value for %s flag", arg)
+			}
+			formatStr = args[i+1]
+			i += 2
+			continue
+		} else if strings.HasPrefix(arg, "-f=") {
+			formatStr = strings.TrimPrefix(arg, "-f=")
+			i++
+			continue
+		} else if strings.HasPrefix(arg, "--format=") {
+			formatStr = strings.TrimPrefix(arg, "--format=")
+			i++
+			continue
+		}
+		queryParts = append(queryParts, args[i])
+		i++
+	}
+
+	query := strings.TrimSpace(strings.Join(queryParts, " "))
+	if query == "" {
+		return "", "", fmt.Errorf("missing SQL statement")
+	}
+
+	// Unwrap enclosing outer quotes if passed as a single quoted block from CLI
+	if (strings.HasPrefix(query, "\"") && strings.HasSuffix(query, "\"")) ||
+		(strings.HasPrefix(query, "'") && strings.HasSuffix(query, "'")) {
+		if len(query) >= 2 {
+			query = query[1 : len(query)-1]
+		}
+	}
+
+	fmtType, err := sqlexec.ParseFormat(formatStr)
+	if err != nil {
+		return "", "", err
+	}
+	return fmtType, query, nil
+}
+
 func (a *ReplicationApp) initCommands() {
 	cr := a.registry
 
@@ -350,6 +402,7 @@ func (a *ReplicationApp) initCommands() {
 			fmt.Println("  get <key>              - Retrieve record from local SQLite store")
 			fmt.Println("  del <key>              - Delete record & broadcast OpDelete changeset")
 			fmt.Println("  list [prefix]          - List stored records in local SQLite store")
+			fmt.Println("  sql [-f fmt] <query>   - Execute arbitrary SQL and format result (json/table/csv)")
 			fmt.Println("  connect <host:port>    - Establish direct encrypted Pear connection")
 			fmt.Println("  sync                   - Replay and broadcast all changesets to peers")
 			fmt.Println("  peers                  - Display active peer connections")
@@ -357,8 +410,23 @@ func (a *ReplicationApp) initCommands() {
 			fmt.Println("  auto-test [count]      - Run automated batch write & replication test")
 			fmt.Println("  help                   - Display this command reference")
 			fmt.Println("  exit, quit             - Terminate node")
-			fmt.Println("\nNote: Slash prefix syntax (e.g. /put, /get, /status) is also supported.")
+			fmt.Println("\nNote: Slash prefix syntax (e.g. /sql, /put, /get, /status) is also supported.")
 			return nil
+		},
+	})
+
+	cr.Register(Command{
+		Name:        "sql",
+		Usage:       "sql [--format <json|table|csv>] [-f <json|table|csv>] <SQL STATEMENT>",
+		Description: "Execute arbitrary SQL query/statement on local SQLite database",
+		Run: func(ctx context.Context, app *ReplicationApp, args []string) error {
+			fmtType, query, err := parseSQLArgs(args)
+			if err != nil {
+				return err
+			}
+			out, err := sqlexec.Execute(ctx, app.engine.DB(), query, fmtType)
+			fmt.Print(out)
+			return err
 		},
 	})
 

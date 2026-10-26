@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"go-pear/pkg/policy"
+	"sqlite-p2p/internal/sqlexec"
 	"sqlite-p2p/pkg/p2p"
 )
 
@@ -311,5 +312,41 @@ func TestReplicationApp_SQLCommands(t *testing.T) {
 	// 7. Test invalid SQL execution error formatting (should return non-nil error from Execute)
 	if err := app.registry.Execute(ctx, app, `sql "SELECT * FROM non_existent_table"`); err == nil {
 		t.Fatal("expected error when querying non-existent table")
+	}
+}
+
+func TestParseSQLArgs_Variants(t *testing.T) {
+	tests := []struct {
+		args        []string
+		expectedFmt sqlexec.OutputFormat
+		expectedQ   string
+		wantErr     bool
+	}{
+		{[]string{"SELECT", "1"}, sqlexec.FormatJSON, "SELECT 1", false},
+		{[]string{"-f", "table", "SELECT", "1"}, sqlexec.FormatTable, "SELECT 1", false},
+		{[]string{"--format", "csv", "SELECT", "1"}, sqlexec.FormatCSV, "SELECT 1", false},
+		{[]string{"-f=table", "SELECT", "1"}, sqlexec.FormatTable, "SELECT 1", false},
+		{[]string{"--format=json", "SELECT", "1"}, sqlexec.FormatJSON, "SELECT 1", false},
+		{[]string{"'SELECT", "1'"}, sqlexec.FormatJSON, "SELECT 1", false},
+		{[]string{}, "", "", true},
+		{[]string{"-f"}, "", "", true},
+		{[]string{"-f", "json"}, "", "", true},
+		{[]string{"-f", "invalid", "SELECT 1"}, "", "", true},
+	}
+
+	for _, tt := range tests {
+		fmtType, query, err := parseSQLArgs(tt.args)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("parseSQLArgs(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+			continue
+		}
+		if !tt.wantErr {
+			if fmtType != tt.expectedFmt {
+				t.Errorf("parseSQLArgs(%v) fmt = %v, want %v", tt.args, fmtType, tt.expectedFmt)
+			}
+			if query != tt.expectedQ {
+				t.Errorf("parseSQLArgs(%v) query = %q, want %q", tt.args, query, tt.expectedQ)
+			}
+		}
 	}
 }
