@@ -245,3 +245,71 @@ func TestReplicationApp_GateCommands(t *testing.T) {
 	}
 }
 
+
+func TestReplicationApp_SQLCommands(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test_sql_cmd.db")
+
+	engine, err := p2p.OpenEngine(p2p.EngineOptions{
+		DBPath:    dbPath,
+		EnableWAL: true,
+	})
+	if err != nil {
+		t.Fatalf("OpenEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	app := &ReplicationApp{
+		cfg: NodeConfig{
+			NodeID: "test-sql-node",
+			DBPath: dbPath,
+		},
+		engine:   engine,
+		registry: NewCommandRegistry(),
+		stopChan: make(chan struct{}),
+	}
+	app.initCommands()
+
+	ctx := context.Background()
+
+	// 1. Test DDL creation and insert via sql
+	if err := app.registry.Execute(ctx, app, `sql "CREATE TABLE products (id INT PRIMARY KEY, name TEXT, price REAL); INSERT INTO products VALUES (1, 'Widget', 19.99);"`); err != nil {
+		t.Fatalf("sql DDL/insert failed: %v", err)
+	}
+
+	// 2. Test query with default JSON format
+	if err := app.registry.Execute(ctx, app, `sql "SELECT id, name, price FROM products WHERE id = 1"`); err != nil {
+		t.Fatalf("sql select json failed: %v", err)
+	}
+
+	// 3. Test slash command syntax `/sql`
+	if err := app.registry.Execute(ctx, app, `/sql "SELECT name FROM products"`); err != nil {
+		t.Fatalf("/sql select failed: %v", err)
+	}
+
+	// 4. Test format flag -f table
+	if err := app.registry.Execute(ctx, app, `sql -f table "SELECT id, name, price FROM products"`); err != nil {
+		t.Fatalf("sql -f table failed: %v", err)
+	}
+
+	// 5. Test format flag --format csv
+	if err := app.registry.Execute(ctx, app, `sql --format csv "SELECT id, name FROM products"`); err != nil {
+		t.Fatalf("sql --format csv failed: %v", err)
+	}
+
+	// 6. Test syntax errors and missing argument validation
+	if err := app.registry.Execute(ctx, app, "sql"); err == nil {
+		t.Fatal("expected error on bare 'sql' without query")
+	}
+	if err := app.registry.Execute(ctx, app, "sql -f"); err == nil {
+		t.Fatal("expected error on 'sql -f' without value")
+	}
+	if err := app.registry.Execute(ctx, app, "sql -f invalid_format SELECT 1"); err == nil {
+		t.Fatal("expected error on unsupported format")
+	}
+
+	// 7. Test invalid SQL execution error formatting (should return non-nil error from Execute)
+	if err := app.registry.Execute(ctx, app, `sql "SELECT * FROM non_existent_table"`); err == nil {
+		t.Fatal("expected error when querying non-existent table")
+	}
+}
