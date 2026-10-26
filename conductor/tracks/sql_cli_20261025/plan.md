@@ -7,10 +7,10 @@
     - [x] Create unit tests for ASCII Table formatting (queries with headers/borders, DML status, error text)
     - [x] Create unit tests for CSV formatting (RFC 4180 query output, DML status, error rows)
     - [x] Create unit tests for multi-statement execution and transaction management
-- [ ] Task: Implement SQL Result Formatter and Query Runner (TDD Green Phase)
-    - [ ] Implement robust column type scanning and dynamic value mapping (NULL, numbers, text, BLOBs)
-    - [ ] Implement JSON, Table, and CSV formatters with error output formatting
-    - [ ] Implement multi-statement parser and transactional SQL execution helper
+- [x] Task: Implement SQL Result Formatter and Query Runner (TDD Green Phase) [668da51]
+    - [x] Implement robust column type scanning and dynamic value mapping (NULL, numbers, text, BLOBs)
+    - [x] Implement JSON, Table, and CSV formatters with error output formatting
+    - [x] Implement multi-statement parser and transactional SQL execution helper
 - [ ] Task: Conductor - User Manual Verification 'Core SQL Executor & Result Formatter Implementation' (Protocol in workflow.md)
 
 ## Phase 2: Handcrafted CLI Command Integration & Argument Parsing
