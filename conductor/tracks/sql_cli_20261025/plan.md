@@ -2,11 +2,11 @@
 
 ## Phase 1: Core SQL Executor & Result Formatter Implementation
 
-- [ ] Task: Write Unit Tests for SQL Result Formatting and Query Detection (TDD Red Phase)
-    - [ ] Create unit tests for JSON formatting (SELECT rows, DML/DDL affected rows, formatted errors)
-    - [ ] Create unit tests for ASCII Table formatting (queries with headers/borders, DML status, error text)
-    - [ ] Create unit tests for CSV formatting (RFC 4180 query output, DML status, error rows)
-    - [ ] Create unit tests for multi-statement execution and transaction management
+- [x] Task: Write Unit Tests for SQL Result Formatting and Query Detection (TDD Red Phase) [83ee8ff]
+    - [x] Create unit tests for JSON formatting (SELECT rows, DML/DDL affected rows, formatted errors)
+    - [x] Create unit tests for ASCII Table formatting (queries with headers/borders, DML status, error text)
+    - [x] Create unit tests for CSV formatting (RFC 4180 query output, DML status, error rows)
+    - [x] Create unit tests for multi-statement execution and transaction management
 - [ ] Task: Implement SQL Result Formatter and Query Runner (TDD Green Phase)
     - [ ] Implement robust column type scanning and dynamic value mapping (NULL, numbers, text, BLOBs)
     - [ ] Implement JSON, Table, and CSV formatters with error output formatting
