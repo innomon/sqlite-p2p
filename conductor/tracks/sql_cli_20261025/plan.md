@@ -27,9 +27,9 @@
 
 ## Phase 3: End-to-End Integration & Regression Verification
 
-- [ ] Task: End-to-End CLI & REPL Integration Verification
-    - [ ] Add integration test verifying one-shot `--cmd "sql ..."` execution against running node
-    - [ ] Verify DDL creation, DML insertion, querying, and error handling end-to-end
+- [x] Task: End-to-End CLI & REPL Integration Verification [b624341]
+    - [x] Add integration test verifying one-shot `--cmd "sql ..."` execution against running node
+    - [x] Verify DDL creation, DML insertion, querying, and error handling end-to-end
 - [ ] Task: Code Coverage & Quality Gate Verification
     - [ ] Run full project test suite and verify >80% code coverage on new code
     - [ ] Verify zero external CLI dependencies (pure Go handcrafted registry)
