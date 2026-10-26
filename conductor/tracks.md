@@ -4,7 +4,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Arbitrary SQL Execution CLI Command (`sql` / `/sql`)**
+- [x] **Track: Arbitrary SQL Execution CLI Command (`sql` / `/sql`)**
 *Link: [./tracks/sql_cli_20261025/](./tracks/sql_cli_20261025/)*
 
 ---
