@@ -1,8 +1,8 @@
 {
   "track_id": "sql_cli_20261025",
   "type": "feature",
-  "status": "new",
+  "status": "completed",
   "created_at": "2026-10-25T13:40:00Z",
-  "updated_at": "2026-10-25T13:40:00Z",
+  "updated_at": "2026-10-27T06:21:00Z",
   "description": "implement a command sql to execute and print result"
 }
