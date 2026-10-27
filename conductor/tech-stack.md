@@ -19,6 +19,7 @@
 
 ## 4. CLI & Configuration Framework
 - **Command Architecture**: Handcrafted command/subcommand dispatch registry (strictly no `spf13/cobra` or `pflag`).
+- **SQL Query & Formatting Engine**: Native `internal/sqlexec` module providing multi-statement transactional execution, query vs mutation detection, and zero-dependency JSON, ASCII Table, and RFC 4180 CSV formatting.
 - **Configuration**: YAML format (`gopkg.in/yaml.v3`) with 3-tier lookup hierarchy: (1) CLI argument `--config`, (2) executable directory `config.yaml`, (3) current working directory `config.yaml`.
 
 ## 5. Security, Privacy & Crypto

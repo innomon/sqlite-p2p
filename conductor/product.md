@@ -26,3 +26,4 @@ A distributed, multi-writer, agentic Customer Relationship Management (CRM) plat
 - **Structured JSON Logging**: Zero-dependency structured JSON logging following standardized enterprise logging schemas.
 - **Model Context Protocol (MCP) Server**: Native MCP runtime (`crm-peer mcp`) exposing customer management, schema registry (`org.schema:*`), ontology traversal, and P2P mesh observability tools over `stdio` and streamable HTTP/SSE.
 - **Replication Gating & Swarm Access Control**: Configurable three-tier peer authorization (all, whitelist, blacklist) integrated into Hyperswarm connection handshake, with real-time dynamic peer eviction and interactive CLI slash command management (`/gate`).
+- **Arbitrary SQL Execution CLI**: Ad-hoc SQL query and DDL/DML statement execution command (`sql` and `/sql`) with transactional multi-statement batching and multi-format output (JSON, Table, CSV) for operator inspection and automation.
