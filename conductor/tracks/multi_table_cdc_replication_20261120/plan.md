@@ -26,7 +26,7 @@
     - [x] Implement `ApplyChangesetToTable(ctx, db, cs)` with `applying_remote = 1` transactional guard, auto-table creation for KV/DDL changesets, and parameterized `INSERT ... ON CONFLICT DO UPDATE` / `DELETE`
 - [x] Task: Conductor - User Manual Verification 'Phase 2: SQLite Trigger-Based CDC Outbox & Loop Prevention' (Protocol in workflow.md) 60d0e89
 
-## Phase 3: Multi-Table ReplicationEngine, LWW Scoping & Outbox Poller (`internal/p2p` & `pkg/p2p`)
+## Phase 3: Multi-Table ReplicationEngine, LWW Scoping & Outbox Poller (`internal/p2p` & `pkg/p2p`) [checkpoint: 19df708]
 
 - [x] Task: Write Unit Tests for Multi-Table `ReplicationEngine` & Outbox Drainer (TDD Red Phase) d1b3bd6
     - [x] Test LWW timestamp scoping by `table + "\x00" + key` so identical keys in `crm_store` and `ecom_store` do not collide
@@ -37,11 +37,11 @@
     - [x] Update `ReplicationEngine` in `internal/p2p/engine.go` to key `timestamps` by `tableKey(cs.Table, cs.Key)` and delegate remote application to `store.ApplyChangesetToTable`
     - [x] Implement `DrainCDCOutbox(ctx)` and background outbox poller lifecycle in `ReplicationEngine` and `pkg/p2p.Engine`
     - [x] Add `DefaultTable`, `IncludeTables`, `ExcludeTables`, and `CDCInterval` options to `pkg/p2p.EngineOptions` and `pkg/config.NodeConfig`
-- [~] Task: Conductor - User Manual Verification 'Phase 3: Multi-Table ReplicationEngine, LWW Scoping & Outbox Poller' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Multi-Table ReplicationEngine, LWW Scoping & Outbox Poller' (Protocol in workflow.md) 19df708
 
 ## Phase 4: End-to-End Multi-Node Swarm Replication Verification (`tests/` & `cmd/e2e-replication`)
 
-- [ ] Task: Write End-to-End Multi-Table Swarm Replication Tests (TDD Red Phase)
+- [~] Task: Write End-to-End Multi-Table Swarm Replication Tests (TDD Red Phase)
     - [ ] Create E2E test with Node A initialized with a `kheti-badi-ecom` `ecom_store` table and a custom `orders` table, replicating over Hyperswarm to Node B (which starts with an empty DB)
     - [ ] Verify that direct SQL `INSERT`, `UPDATE`, and `DELETE` via `sql` CLI / `*sql.DB` on Node A replicate to Node B and vice versa without replication loops
 - [ ] Task: Wire `sql` CLI Trigger Refresh & Pass Full Quality Gates (TDD Green Phase)
