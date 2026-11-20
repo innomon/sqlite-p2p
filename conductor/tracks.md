@@ -4,6 +4,12 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
+## Active Tracks
+
+- [~] [Multi-Table Schema Auto-Discovery, Trigger-Based CDC Outbox & Universal Hypercore Swarm Replication](./tracks/multi_table_cdc_replication_20261120/index.md) (Status: In Progress)
+
+---
+
 ## Archived Tracks
 All completed tracks have been archived to [conductor/archive/](./archive/).
 
