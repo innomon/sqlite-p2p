@@ -517,6 +517,15 @@ func TestEngineMultiTableLWWScopingAndSeedAndDrainOutbox(t *testing.T) {
 	_ = engine1.PutLocal(ctx, "logged:1", json.RawMessage(`{"ok":true}`), []byte("val"))
 	_ = engine1.DeleteLocal(ctx, "logged:1")
 	_, _ = engine1.SyncPeers(ctx)
+
+	// Test nil repo edge cases on ReplicationEngine
+	nilEng := p2p.NewReplicationEngine(nil, nil, nil)
+	_, _ = nilEng.SeedFromRepository(ctx)
+	_, _ = nilEng.DrainCDCOutbox(ctx)
+	_, _ = nilEng.SyncPeers(ctx)
+	_ = feed1.Key()
+	_ = feed1.DiscoveryKey()
+	_ = feed1.Core()
 }
 
 

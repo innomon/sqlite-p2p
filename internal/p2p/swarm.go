@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 	"sync"
 
 	"go-pear/pkg/hyperswarm"
@@ -246,6 +247,9 @@ func (sm *SwarmManager) ConnectDirect(ip string, port int) error {
 	sm.mu.RUnlock()
 
 	_, err := sm.swarm.ConnectDirect(ip, port, topic)
+	if err != nil && strings.Contains(err.Error(), "duplicate connection to peer") {
+		return nil
+	}
 	return err
 }
 

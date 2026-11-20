@@ -311,8 +311,60 @@ func TestReplicationApp_SQLCommands(t *testing.T) {
 
 	// 7. Test invalid SQL execution error formatting (should return non-nil error from Execute)
 	if err := app.registry.Execute(ctx, app, `sql "SELECT * FROM non_existent_table"`); err == nil {
-		t.Fatal("expected error when querying non-existent table")
+		t.Fatal("expected error when querying non_existent_table")
 	}
+}
+
+func TestReplicationApp_SQLCommand_ImmediateCDCDrain(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test_sql_cdc.db")
+
+	var topic [32]byte
+	copy(topic[:], "test-sql-cli-immediate-cdc-drain")
+
+	// Set a very long CDCInterval (1 hour) so only immediate DrainCDCOutbox inside `sql` command can populate the feed!
+	engine, err := p2p.OpenEngine(p2p.EngineOptions{
+		DBPath:      dbPath,
+		EnableWAL:   true,
+		SwarmTopic:  topic,
+		CDCInterval: 3600 * 1e9,
+	})
+	if err != nil {
+		t.Fatalf("OpenEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	app := &ReplicationApp{
+		cfg: NodeConfig{
+			NodeID: "test-sql-cdc-node",
+			DBPath: dbPath,
+		},
+		engine:   engine,
+		registry: NewCommandRegistry(),
+		stopChan: make(chan struct{}),
+	}
+	app.initCommands()
+
+	ctx := context.Background()
+	beforeLen := engine.ChangesetFeed().Len()
+
+	if err := app.registry.Execute(ctx, app, `sql "CREATE TABLE ecom_store (key TEXT PRIMARY KEY, metadata TEXT, data BLOB) WITHOUT ROWID; INSERT INTO ecom_store VALUES ('prod:1', '{\"v\":1}', X'4142');"`); err != nil {
+		t.Fatalf("sql command failed: %v", err)
+	}
+
+	afterLen := engine.ChangesetFeed().Len()
+	if afterLen <= beforeLen {
+		t.Fatalf("expected sql command to immediately drain CDC outbox into ChangesetFeed (before=%d, after=%d)", beforeLen, afterLen)
+	}
+
+	// Exercise status, peers, sync, auto-test, and connectToPeer
+	_ = app.registry.Execute(ctx, app, "status")
+	_ = app.registry.Execute(ctx, app, "peers")
+	_ = app.registry.Execute(ctx, app, "sync")
+	_ = app.registry.Execute(ctx, app, "auto-test 2")
+	app.connectToPeer(ctx, "")
+	app.connectToPeer(ctx, "invalid-addr")
+	app.connectToPeer(ctx, "127.0.0.1:notaport")
 }
 
 func TestParseSQLArgs_Variants(t *testing.T) {

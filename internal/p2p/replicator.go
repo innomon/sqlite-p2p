@@ -17,6 +17,7 @@ type ChangesetHandler func(cs *store.Changeset) error
 // Replicator manages streaming changesets over peer connections.
 type Replicator struct {
 	mu       sync.RWMutex
+	writeMu  sync.Mutex
 	feed     *ChangesetFeed
 	handler  ChangesetHandler
 	peers    map[net.Conn]struct{}
@@ -82,7 +83,10 @@ func (r *Replicator) syncFeedToPeer(conn net.Conn) {
 		msg := make([]byte, 4+len(raw))
 		binary.BigEndian.PutUint32(msg[:4], length)
 		copy(msg[4:], raw)
-		if _, err := conn.Write(msg); err != nil {
+		r.writeMu.Lock()
+		_, wErr := conn.Write(msg)
+		r.writeMu.Unlock()
+		if wErr != nil {
 			return
 		}
 	}
@@ -194,9 +198,11 @@ func (r *Replicator) BroadcastChangeset(cs *store.Changeset) error {
 	l := r.logger
 	r.mu.RUnlock()
 
+	r.writeMu.Lock()
 	for _, p := range peers {
 		_, _ = p.Write(msg)
 	}
+	r.writeMu.Unlock()
 
 	if l != nil {
 		l.Info("changeset broadcast to peers",

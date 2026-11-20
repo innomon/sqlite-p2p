@@ -206,14 +206,17 @@ func main() {
 	}))
 
 	engine, err := p2p.OpenEngine(p2p.EngineOptions{
-		DBPath:       cfg.DBPath,
-		EnableWAL:    cfg.EnableWAL,
-		EnableCrypto: cfg.EnableCrypto,
-		SwarmTopic:   topicHash,
-		SwarmPort:    cfg.SwarmPort,
-		Bootstrap:    cfg.Bootstrap,
-		Policy:       replPolicy,
-		Logger:       logger,
+		DBPath:        cfg.DBPath,
+		DefaultTable:  cfg.DefaultTable,
+		IncludeTables: cfg.IncludeTables,
+		ExcludeTables: cfg.ExcludeTables,
+		EnableWAL:     cfg.EnableWAL,
+		EnableCrypto:  cfg.EnableCrypto,
+		SwarmTopic:    topicHash,
+		SwarmPort:     cfg.SwarmPort,
+		Bootstrap:     cfg.Bootstrap,
+		Policy:        replPolicy,
+		Logger:        logger,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize sqlite-p2p engine: %v\n", err)
@@ -426,6 +429,9 @@ func (a *ReplicationApp) initCommands() {
 			}
 			out, err := sqlexec.Execute(ctx, app.engine.DB(), query, fmtType)
 			fmt.Print(out)
+			if err == nil && app.engine != nil {
+				_, _ = app.engine.DrainCDCOutbox(ctx)
+			}
 			return err
 		},
 	})

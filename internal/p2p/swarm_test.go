@@ -133,6 +133,14 @@ func TestSwarmManagerDHTTopicDiscovery(t *testing.T) {
 	if sm1.PeerCount() == 0 && sm2.PeerCount() == 0 {
 		t.Fatalf("expected peer count > 0")
 	}
+
+	// Calling ConnectDirect when already connected via DHT should succeed idempotently
+	if err := sm2.ConnectDirect("127.0.0.1", sm1.Port()); err != nil {
+		t.Fatalf("expected idempotent ConnectDirect on duplicate peer, got: %v", err)
+	}
+	if sm1.Swarm() == nil {
+		t.Fatalf("expected non-nil Swarm()")
+	}
 }
 
 func TestSwarmManagerRawConnection(t *testing.T) {

@@ -33,8 +33,8 @@ func OpenDB(dbPath string, enableWAL bool) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open sqlite database: %w", err)
 	}
 
-	// Always enforce foreign keys
-	if _, err := db.Exec("PRAGMA foreign_keys = ON;"); err != nil {
+	// Always enforce foreign keys and set busy_timeout for concurrent access
+	if _, err := db.Exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;"); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
