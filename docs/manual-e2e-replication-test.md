@@ -81,7 +81,7 @@ To solve peer discovery seamlessly across both local and internet environments w
 
 #### Solution C: Dart (`dap`) Host IP Resolution & Unspecified Address Fix
 
-- In `/home/innomon/B204-zone/dap/pear`:
+- In `$PROJECT_ROOT/dap/pear`:
   - `HyperDhtNode.resolveRoutableAddress()` now actively inspects non-loopback host network interfaces (`NetworkInterface.list()`).
   - Announcements no longer store `0.0.0.0` in `_topicStorage`.
   - `HolePunchCoordinator` candidate fallbacks now use routable host IP addresses instead of unspecified loopbacks.
@@ -150,13 +150,16 @@ Inspect `/config/node1.json`:
   "bootstrap": [],
   "peer_addrs": [],
   "db_path": "data/node1.db",
+  "default_table": "crm_store",
+  "include_tables": [],
+  "exclude_tables": [],
   "enable_wal": true,
   "enable_crypto": false,
   "auto_sync": true
 }
 ```
 
-*`swarm_port: 0` instructs the OS kernel to select a dynamic ephemeral port.*
+*`swarm_port: 0` instructs the OS kernel to select a dynamic ephemeral port. When `include_tables` is empty (`[]`), all user tables in the SQLite database (such as `crm_store`, `ecom_store`, or custom relational tables) are automatically discovered, outfitted with SQLite CDC triggers, and replicated across the swarm.*
 
 ### Computer 2 (macOS M4) Configuration
 
@@ -391,14 +394,52 @@ Found 50 record(s):
 
 ---
 
+### Step 6: Multi-Table Auto-Discovery & Arbitrary SQL Replication (`sql` / `/sql`)
+
+`sqlite-p2p` automatically discovers and replicates **any user table** in your SQLite database (including existing tables like `ecom_store` in `kheti_badi.db` or brand-new relational tables created at runtime via SQL):
+
+1. **Create and populate a custom table on Computer 1 using `sql`:**
+
+   ```text
+   > sql "CREATE TABLE orders (id TEXT PRIMARY KEY, customer TEXT, status TEXT, total REAL); INSERT INTO orders VALUES ('ORD-101', 'Ramesh Kumar', 'PAID', 3200.0);"
+   {"status":"ok","rows_affected":1}
+   ```
+
+2. **Query the replicated table on Computer 2 in ASCII table, JSON, or CSV format:**
+
+   ```text
+   > /sql -f table "SELECT id, customer, status, total FROM orders"
+   id      | customer     | status | total
+   --------+--------------+--------+------
+   ORD-101 | Ramesh Kumar | PAID   | 3200
+   ```
+
+3. **Replicate an existing multi-table database (e.g. `kheti_badi.db` with `ecom_store`):**
+   - Point Node 1's `-db` flag (or `db_path`) to an existing database containing `ecom_store`:
+     ```bash
+     ./run-e2e-test.sh -db data/kheti_badi_1.db -node node-1
+     ```
+   - Start Node 2 with a fresh database path on the same Swarm topic:
+     ```bash
+     ./run-e2e-test.sh -db data/kheti_badi_2.db -node node-2
+     ```
+   - Node 1 automatically seeds the `ecom_store` schema (`OpDDL`) and all existing rows into its Hypercore feed and replicates them to Node 2. Verify on Node 2:
+     ```text
+     > sql -f table "SELECT key, metadata FROM ecom_store LIMIT 10"
+     ```
+
+---
+
 ## 6. Command Reference
 
 | Command | Slash Syntax | Description |
 | :--- | :--- | :--- |
-| `put <key> <data>` | `/put` | Inserts/updates record, writes to Hypercore feed, broadcasts to swarm |
-| `get <key>` | `/get` | Retrieves record from local SQLite database |
-| `del <key>` | `/del` | Deletes record and broadcasts `OpDelete` |
-| `list [prefix]` | `/list` | Lists stored records in local SQLite store |
+| `put <key> <data>` | `/put` | Inserts/updates record in `default_table`, writes to Hypercore feed, broadcasts to swarm |
+| `get <key>` | `/get` | Retrieves record from `default_table` in local SQLite database |
+| `del <key>` | `/del` | Deletes record from `default_table` and broadcasts `OpDelete` |
+| `list [prefix]` | `/list` | Lists stored records in `default_table` matching prefix |
+| `sql [-f fmt] <sql>` | `/sql` | Executes arbitrary SQL (`json`, `table`, or `csv` output) and immediately drains CDC triggers |
+| `gate [subcmd]` | `/gate`, `/gating` | Inspects and manages peer replication gating (`status`, `list`, `set-mode`, `allow`, `deny`, `evict`) |
 | `connect <addr>` | `/connect` | Establishes a direct encrypted Pear connection to `<ip>:<port>` |
 | `sync` | `/sync` | Replays local feed changesets to all connected peers |
 | `peers` | `/peers` | Displays active swarm peer connections |

@@ -14,8 +14,9 @@ This guide provides instructions for AI coding agents and autonomous developer h
 
 `sqlite-p2p` is a pure Go (`CGO_ENABLED=0`) decentralized SQLite database engine that provides:
 
-- **Local SQLite Store**: Powered by `modernc.org/sqlite` with WAL mode enabled.
-- **Peer-to-Peer Replication**: Powered by pure Go Holepunch/Pear protocols (Autobase changeset linearization and Hyperswarm DHT discovery).
+- **Local SQLite Store**: Powered by `modernc.org/sqlite` with WAL mode and `busy_timeout` enabled.
+- **Universal Multi-Table Auto-Discovery & Trigger CDC**: Automatically discovers all user tables (`crm_store`, `ecom_store`, and arbitrary relational schemas), attaches `AFTER INSERT/UPDATE/DELETE` triggers into `_p2p_cdc_outbox`, guards remote changeset application via `_p2p_sync_state.applying_remote = 1`, and replicates `OpDDL` + row mutations across peers.
+- **Peer-to-Peer Replication**: Powered by pure Go Holepunch/Pear protocols (Hypercore append-only feeds, Autobase changeset linearization, table-scoped LWW reconciliation, and Hyperswarm DHT discovery).
 - **Cryptographic Shredding**: Per-record AES-256-GCM encryption with key purging for mathematical right-to-be-forgotten on append-only feeds.
 - **Clean Public Embedding API**: Exported via `sqlite-p2p/pkg/p2p`.
 
@@ -42,33 +43,49 @@ package main
 
 import (
     "context"
+    "crypto/sha256"
+    "encoding/json"
     "log"
+    "time"
 
     "sqlite-p2p/pkg/p2p"
 )
 
 func main() {
-    engine, err := p2p.NewEngine(p2p.Config{
-        DBPath:     "my_node.db",
-        WALMode:    true,
-        SwarmTopic: "my.app.cluster.v1",
-        StorageDir: ".storage_data",
-        EnableP2P:  true,
+    ctx := context.Background()
+    topic := sha256.Sum256([]byte("my.app.cluster.v1"))
+
+    engine, err := p2p.OpenEngine(p2p.EngineOptions{
+        DBPath:        "my_node.db",
+        DefaultTable:  "crm_store", // Or "ecom_store" for e-commerce KV workloads
+        IncludeTables: nil,         // Empty = auto-discover & replicate all user tables
+        ExcludeTables: nil,
+        CDCInterval:   150 * time.Millisecond,
+        EnableWAL:     true,
+        EnableCrypto:  false,
+        SwarmTopic:    topic,
     })
     if err != nil {
         log.Fatalf("failed to init engine: %v", err)
     }
     defer engine.Close()
 
-    // Access Repository
-    repo := engine.Repository()
-
-    // Store record
-    ctx := context.Background()
-    err = repo.Put(ctx, "user:123", `{"name":"Alice"}`, []byte("confidential"))
+    // 1. KV API Write (writes to DefaultTable and broadcasts immediately)
+    err = engine.Put(ctx, "user:123", json.RawMessage(`{"name":"Alice"}`), []byte("confidential"))
     if err != nil {
         log.Fatalf("failed to put: %v", err)
     }
+
+    // 2. Direct SQL Write on any table (captured automatically by SQLite CDC triggers)
+    _, err = engine.DB().ExecContext(ctx, `
+        CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, status TEXT, total REAL);
+        INSERT INTO orders (id, status, total) VALUES ('ord:1', 'PAID', 99.50);
+    `)
+    if err != nil {
+        log.Fatalf("failed to exec sql: %v", err)
+    }
+    // Optional: trigger immediate CDC outbox drain without waiting for background poller
+    _, _ = engine.DrainCDCOutbox(ctx)
 }
 ```
 

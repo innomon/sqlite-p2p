@@ -3,7 +3,7 @@
 This document describes the architectural foundation, data protocols, and synchronization mechanisms powering the `sqlite-p2p` decentralized database engine.
 
 - **Developer Setup & Usage Guide**: Refer to [README.md](/README.md) for embedding and API instructions.
-- **Application Layer Reference**: Refer to [crm-lite](file:///home/innomon/B204-zone/owly-sewa/crm-lite) for CRM application implementation details.
+- **Manual E2E Replication Guide**: Refer to [docs/manual-e2e-replication-test.md](/docs/manual-e2e-replication-test.md) for multi-node CLI and SQL replication workflows.
 
 ---
 
@@ -14,36 +14,39 @@ This document describes the architectural foundation, data protocols, and synchr
 ```mermaid
 flowchart TD
     subgraph AppNodeA["Application Node A"]
-        APP_A["Application Code"]
+        APP_A["Application Code / SQL CLI"]
         ENGINE_A["sqlite-p2p Engine"]
-        DBA[("Embedded SQLite<br/>(WAL Mode)")]
-        TRACKER_A["Changeset Tracker"]
+        DBA[("Embedded SQLite (WAL)<br/>crm_store | ecom_store | Relational Tables")]
+        CDC_A["SQLite CDC Triggers<br/>(_p2p_cdc_outbox & _p2p_sync_state)"]
         FEED_A[("Hypercore Feed A<br/>(Append-Only)")]
         KRA[("KeyRegistry<br/>(AES-256 Keys)")]
     end
 
     subgraph AppNodeB["Application Node B"]
-        APP_B["Application Code"]
+        APP_B["Application Code / SQL CLI"]
         ENGINE_B["sqlite-p2p Engine"]
-        DBB[("Embedded SQLite<br/>(WAL Mode)")]
-        TRACKER_B["Changeset Tracker"]
+        DBB[("Embedded SQLite (WAL)<br/>crm_store | ecom_store | Relational Tables")]
+        CDC_B["SQLite CDC Triggers<br/>(_p2p_cdc_outbox & _p2p_sync_state)"]
         FEED_B[("Hypercore Feed B<br/>(Append-Only)")]
         KRB[("KeyRegistry<br/>(AES-256 Keys)")]
     end
 
     subgraph P2P["P2P Swarm Network (Pear/Holepunch Stack)"]
-        DHT["Hyperswarm DHT<br/>(32-Byte Topic Discovery)"]
+        DHT["Hyperswarm DHT & SecretStream<br/>(32-Byte Topic + Replication Gate)"]
     end
 
     APP_A --> ENGINE_A
+    APP_A --> DBA
     ENGINE_A --> DBA
     ENGINE_A --> KRA
-    DBA --> TRACKER_A
-    TRACKER_A --> FEED_A
+    DBA --> CDC_A
+    CDC_A --> FEED_A
     FEED_A <--> DHT
     DHT <--> FEED_B
-    FEED_B --> DBB
+    FEED_B --> ENGINE_B
     ENGINE_B --> DBB
+    DBB --> CDC_B
+    ENGINE_B --> KRB
     APP_B --> ENGINE_B
 ```
 
@@ -54,23 +57,33 @@ flowchart TD
 ### 2.1 Pure Go & Zero-CGO Runtime
 The entire engine compiles with `CGO_ENABLED=0` using `modernc.org/sqlite`. It contains no C library dependencies, ensuring portability across Linux, macOS, and Windows.
 
-### 2.2 Generic Storage Schema
-Persistent records are stored in a schema-agnostic key-value structure:
+### 2.2 Universal Multi-Table Storage & Schema Auto-Discovery
+`sqlite-p2p` supports both schema-agnostic Key-Value tables (`crm_store`, `ecom_store`) and arbitrary relational SQLite tables:
 
-```sql
-CREATE TABLE IF NOT EXISTS crm_store (
-    key TEXT PRIMARY KEY,
-    metadata TEXT CHECK(json_valid(metadata)),
-    data BLOB
-) WITHOUT ROWID;
-```
+1. **Fast-Path KV Tables**:
+   ```sql
+   CREATE TABLE IF NOT EXISTS crm_store (
+       key TEXT PRIMARY KEY,
+       metadata TEXT CHECK(json_valid(metadata)),
+       data BLOB
+   ) WITHOUT ROWID;
+   ```
+2. **Schema Auto-Discovery (`internal/store/tables.go`)**:
+   - Inspects `sqlite_master` and `PRAGMA table_info(<table>)` on startup and after SQL execution.
+   - Automatically excludes SQLite system tables (`sqlite_%`), P2P bookkeeping tables (`_p2p_%`), and the local encryption key table (`crm_keys`).
+   - Detects single-column primary keys, composite primary keys (encoded as JSON arrays), and implicit `rowid` tables.
 
-### 2.3 Changeset Capture & Replication Flow
-1. **Mutation**: A local write occurs via `engine.Put()` or `engine.Delete()`.
-2. **Capture**: The `ChangesetTracker` constructs a timestamped binary changeset containing operation type (`OpInsert`, `OpUpdate`, `OpDelete`), monotonic sequence number, and previous hash.
-3. **Feed Append**: Changesets are appended to the local append-only `Hypercore` feed.
-4. **Peer Exchange**: Remote changesets stream over Hyperswarm peer connections.
-5. **Autobase Reconciliation**: Changesets are linearized across peers using Last-Write-Wins (LWW) conflict resolution.
+### 2.3 Trigger-Based Change Data Capture (CDC) & Loop Prevention
+1. **Trigger Installation (`internal/store/cdc.go`)**:
+   - Every tracked user table is outfitted with `AFTER INSERT`, `AFTER UPDATE`, and `AFTER DELETE` triggers (`_p2p_trg_<table>_ins/upd/del`) that write mutations into `_p2p_cdc_outbox`.
+   - Relational row payloads are serialized via SQLite `json_object(...)` with binary `BLOB` columns safely wrapped as `{"$blob_hex": "<hex>"}`.
+2. **Remote-Apply Loop Prevention Guard (`_p2p_sync_state`)**:
+   - Every CDC trigger includes `WHEN (SELECT applying_remote FROM _p2p_sync_state WHERE id = 1) = 0`.
+   - When `ApplyChangesetToTable` applies an incoming remote changeset inside a transaction, it sets `applying_remote = 1` before mutating the target table and resets `applying_remote = 0` prior to commit, guaranteeing zero recursive replication loops.
+3. **Initial Database Seeding & DDL Replication (`OpDDL`)**:
+   - When an existing SQLite database (e.g. `kheti_badi.db` containing `ecom_store`) is opened with an empty `.hypercore` feed, `SeedFromRepository` emits normalized `OpDDL` (`CREATE TABLE IF NOT EXISTS ...`) and `OpInsert` changesets for all discovered tables and rows.
+4. **Table-Scoped Last-Write-Wins (LWW) Reconciliation**:
+   - `ReplicationEngine` scopes LWW timestamps by composite key `table + "\x00" + key`, ensuring primary keys shared across distinct tables resolve independently.
 
 ### 2.4 Cryptographic Shredding
 - Payloads are encrypted using authenticated symmetric `AES-256-GCM`.
