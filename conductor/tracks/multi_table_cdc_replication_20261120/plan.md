@@ -1,6 +1,6 @@
 # Implementation Plan: Multi-Table Schema Auto-Discovery, Trigger-Based CDC Outbox & Universal Hypercore Swarm Replication
 
-## Phase 1: Multi-Table Changeset Envelope & Schema Discovery Engine (`internal/store`)
+## Phase 1: Multi-Table Changeset Envelope & Schema Discovery Engine (`internal/store`) [checkpoint: 8bd7ce9]
 
 - [x] Task: Write Unit Tests for Multi-Table `Changeset` & Table Discovery (TDD Red Phase) 319c652
     - [x] Test encoding/decoding `Changeset` with `Table`, `Columns`, `DDL`, and `OpDDL`
@@ -11,20 +11,20 @@
     - [x] Extend `OperationType` (`OpDDL`) and `Changeset` struct in `internal/store/changeset.go`
     - [x] Implement `TableInfo`, `ColumnInfo`, and `DiscoverTables` in `internal/store/tables.go`
     - [x] Parameterize `Repository` table name (`NewRepositoryWithTable(db, tableName)`) while keeping `NewRepository(db)` defaulting to `"crm_store"`
-- [~] Task: Conductor - User Manual Verification 'Phase 1: Multi-Table Changeset Envelope & Schema Discovery Engine' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Multi-Table Changeset Envelope & Schema Discovery Engine' (Protocol in workflow.md) 8bd7ce9
 
 ## Phase 2: SQLite Trigger-Based CDC Outbox & Loop Prevention (`internal/store`)
 
-- [ ] Task: Write Unit Tests for CDC Triggers & Outbox Draining (TDD Red Phase)
-    - [ ] Test initialization of `_p2p_sync_state` and `_p2p_cdc_outbox` tables
-    - [ ] Test automatic installation of `AFTER INSERT`, `AFTER UPDATE`, and `AFTER DELETE` triggers on `ecom_store` (`WITHOUT ROWID` KV table) and a relational `orders` table
-    - [ ] Test that direct `db.Exec("INSERT/UPDATE/DELETE ...")` populates `_p2p_cdc_outbox` with accurate operation, PK key, metadata/data or column JSON
-    - [ ] Test that mutations executed inside `WithRemoteApply(tx, ...)` (`applying_remote = 1`) do NOT generate `_p2p_cdc_outbox` rows
-- [ ] Task: Implement Trigger Generator, Outbox Reader & Remote-Apply Guard (TDD Green Phase)
-    - [ ] Implement `InitCDC(db)` and `InstallTableTriggers(db, tableInfo)` in `internal/store/cdc.go`
-    - [ ] Implement `ReadAndClearOutbox(ctx, db, limit)` converting outbox records into `[]*Changeset`
-    - [ ] Implement `ApplyChangesetToTable(ctx, db, cs)` with `applying_remote = 1` transactional guard, auto-table creation for KV/DDL changesets, and parameterized `INSERT ... ON CONFLICT DO UPDATE` / `DELETE`
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: SQLite Trigger-Based CDC Outbox & Loop Prevention' (Protocol in workflow.md)
+- [x] Task: Write Unit Tests for CDC Triggers & Outbox Draining (TDD Red Phase) 858bc5a
+    - [x] Test initialization of `_p2p_sync_state` and `_p2p_cdc_outbox` tables
+    - [x] Test automatic installation of `AFTER INSERT`, `AFTER UPDATE`, and `AFTER DELETE` triggers on `ecom_store` (`WITHOUT ROWID` KV table) and a relational `orders` table
+    - [x] Test that direct `db.Exec("INSERT/UPDATE/DELETE ...")` populates `_p2p_cdc_outbox` with accurate operation, PK key, metadata/data or column JSON
+    - [x] Test that mutations executed inside `WithRemoteApply(tx, ...)` (`applying_remote = 1`) do NOT generate `_p2p_cdc_outbox` rows
+- [x] Task: Implement Trigger Generator, Outbox Reader & Remote-Apply Guard (TDD Green Phase) 858bc5a
+    - [x] Implement `InitCDC(db)` and `InstallTableTriggers(db, tableInfo)` in `internal/store/cdc.go`
+    - [x] Implement `ReadAndClearOutbox(ctx, db, limit)` converting outbox records into `[]*Changeset`
+    - [x] Implement `ApplyChangesetToTable(ctx, db, cs)` with `applying_remote = 1` transactional guard, auto-table creation for KV/DDL changesets, and parameterized `INSERT ... ON CONFLICT DO UPDATE` / `DELETE`
+- [~] Task: Conductor - User Manual Verification 'Phase 2: SQLite Trigger-Based CDC Outbox & Loop Prevention' (Protocol in workflow.md)
 
 ## Phase 3: Multi-Table ReplicationEngine, LWW Scoping & Outbox Poller (`internal/p2p` & `pkg/p2p`)
 
