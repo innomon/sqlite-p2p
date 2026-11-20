@@ -13,7 +13,7 @@
     - [x] Parameterize `Repository` table name (`NewRepositoryWithTable(db, tableName)`) while keeping `NewRepository(db)` defaulting to `"crm_store"`
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Multi-Table Changeset Envelope & Schema Discovery Engine' (Protocol in workflow.md) 8bd7ce9
 
-## Phase 2: SQLite Trigger-Based CDC Outbox & Loop Prevention (`internal/store`)
+## Phase 2: SQLite Trigger-Based CDC Outbox & Loop Prevention (`internal/store`) [checkpoint: 60d0e89]
 
 - [x] Task: Write Unit Tests for CDC Triggers & Outbox Draining (TDD Red Phase) 858bc5a
     - [x] Test initialization of `_p2p_sync_state` and `_p2p_cdc_outbox` tables
@@ -24,20 +24,20 @@
     - [x] Implement `InitCDC(db)` and `InstallTableTriggers(db, tableInfo)` in `internal/store/cdc.go`
     - [x] Implement `ReadAndClearOutbox(ctx, db, limit)` converting outbox records into `[]*Changeset`
     - [x] Implement `ApplyChangesetToTable(ctx, db, cs)` with `applying_remote = 1` transactional guard, auto-table creation for KV/DDL changesets, and parameterized `INSERT ... ON CONFLICT DO UPDATE` / `DELETE`
-- [~] Task: Conductor - User Manual Verification 'Phase 2: SQLite Trigger-Based CDC Outbox & Loop Prevention' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: SQLite Trigger-Based CDC Outbox & Loop Prevention' (Protocol in workflow.md) 60d0e89
 
 ## Phase 3: Multi-Table ReplicationEngine, LWW Scoping & Outbox Poller (`internal/p2p` & `pkg/p2p`)
 
-- [ ] Task: Write Unit Tests for Multi-Table `ReplicationEngine` & Outbox Drainer (TDD Red Phase)
-    - [ ] Test LWW timestamp scoping by `table + "\x00" + key` so identical keys in `crm_store` and `ecom_store` do not collide
-    - [ ] Test `SeedFromRepository` emitting `OpDDL` and `OpInsert` changesets for all discovered user tables (`crm_store`, `ecom_store`, custom tables)
-    - [ ] Test `DrainCDCOutbox` polling `_p2p_cdc_outbox`, appending to `ChangesetFeed`/`AutobaseManager`, and broadcasting to connected peers
-    - [ ] Test `ApplyRemoteChangeset` handling `OpDDL`, KV tables (`ecom_store`), and relational tables end-to-end
-- [ ] Task: Upgrade `ReplicationEngine` and `pkg/p2p.Engine` for Multi-Table CDC Sync (TDD Green Phase)
-    - [ ] Update `ReplicationEngine` in `internal/p2p/engine.go` to key `timestamps` by `tableKey(cs.Table, cs.Key)` and delegate remote application to `store.ApplyChangesetToTable`
-    - [ ] Implement `DrainCDCOutbox(ctx)` and background outbox poller lifecycle in `ReplicationEngine` and `pkg/p2p.Engine`
-    - [ ] Add `DefaultTable`, `IncludeTables`, `ExcludeTables`, and `CDCInterval` options to `pkg/p2p.EngineOptions` and `pkg/config.NodeConfig`
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Multi-Table ReplicationEngine, LWW Scoping & Outbox Poller' (Protocol in workflow.md)
+- [x] Task: Write Unit Tests for Multi-Table `ReplicationEngine` & Outbox Drainer (TDD Red Phase) d1b3bd6
+    - [x] Test LWW timestamp scoping by `table + "\x00" + key` so identical keys in `crm_store` and `ecom_store` do not collide
+    - [x] Test `SeedFromRepository` emitting `OpDDL` and `OpInsert` changesets for all discovered user tables (`crm_store`, `ecom_store`, custom tables)
+    - [x] Test `DrainCDCOutbox` polling `_p2p_cdc_outbox`, appending to `ChangesetFeed`/`AutobaseManager`, and broadcasting to connected peers
+    - [x] Test `ApplyRemoteChangeset` handling `OpDDL`, KV tables (`ecom_store`), and relational tables end-to-end
+- [x] Task: Upgrade `ReplicationEngine` and `pkg/p2p.Engine` for Multi-Table CDC Sync (TDD Green Phase) d1b3bd6
+    - [x] Update `ReplicationEngine` in `internal/p2p/engine.go` to key `timestamps` by `tableKey(cs.Table, cs.Key)` and delegate remote application to `store.ApplyChangesetToTable`
+    - [x] Implement `DrainCDCOutbox(ctx)` and background outbox poller lifecycle in `ReplicationEngine` and `pkg/p2p.Engine`
+    - [x] Add `DefaultTable`, `IncludeTables`, `ExcludeTables`, and `CDCInterval` options to `pkg/p2p.EngineOptions` and `pkg/config.NodeConfig`
+- [~] Task: Conductor - User Manual Verification 'Phase 3: Multi-Table ReplicationEngine, LWW Scoping & Outbox Poller' (Protocol in workflow.md)
 
 ## Phase 4: End-to-End Multi-Node Swarm Replication Verification (`tests/` & `cmd/e2e-replication`)
 
