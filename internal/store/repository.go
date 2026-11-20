@@ -20,16 +20,44 @@ type Record struct {
 	Data     []byte          `json:"data"`
 }
 
-// Repository handles CRUD operations for the unified crm_store table,
+// Repository handles CRUD operations for a KV store table (defaulting to crm_store),
 // optionally encrypting customer payloads and managing cryptographic shredding.
 type Repository struct {
-	db   *sql.DB
-	keys *crypto.KeyRegistry
+	db        *sql.DB
+	tableName string
+	keys      *crypto.KeyRegistry
 }
 
-// NewRepository creates a new Repository backed by the given SQL database.
+// NewRepository creates a new Repository backed by the given SQL database targeting crm_store.
 func NewRepository(db *sql.DB) *Repository {
-	return &Repository{db: db}
+	return NewRepositoryWithTable(db, DefaultTableName)
+}
+
+// NewRepositoryWithTable creates a new Repository targeting the specified KV table name.
+func NewRepositoryWithTable(db *sql.DB, tableName string) *Repository {
+	if tableName == "" {
+		tableName = DefaultTableName
+	}
+	return &Repository{
+		db:        db,
+		tableName: tableName,
+	}
+}
+
+// TableName returns the SQLite table name managed by this Repository.
+func (r *Repository) TableName() string {
+	if r == nil || r.tableName == "" {
+		return DefaultTableName
+	}
+	return r.tableName
+}
+
+// DB returns the underlying *sql.DB handle.
+func (r *Repository) DB() *sql.DB {
+	if r == nil {
+		return nil
+	}
+	return r.db
 }
 
 // SetKeyRegistry configures a KeyRegistry for payload encryption and crypto-shredding.
@@ -42,20 +70,25 @@ func (r *Repository) KeyRegistry() *crypto.KeyRegistry {
 	return r.keys
 }
 
-// PutRaw writes or upserts a record directly into crm_store without attempting encryption.
+// PutRaw writes or upserts a record directly into the repository table without attempting encryption.
 func (r *Repository) PutRaw(ctx context.Context, key string, metadata json.RawMessage, data []byte) error {
 	if len(metadata) == 0 || !json.Valid(metadata) {
 		return fmt.Errorf("invalid json metadata for key %s", key)
 	}
 
-	query := `
-	INSERT INTO crm_store (key, metadata, data)
+	quotedTable, err := QuoteIdent(r.TableName())
+	if err != nil {
+		return err
+	}
+
+	query := fmt.Sprintf(`
+	INSERT INTO %s (key, metadata, data)
 	VALUES (?, ?, ?)
 	ON CONFLICT(key) DO UPDATE SET
 		metadata = excluded.metadata,
 		data = excluded.data;
-	`
-	_, err := r.db.ExecContext(ctx, query, key, string(metadata), data)
+	`, quotedTable)
+	_, err = r.db.ExecContext(ctx, query, key, string(metadata), data)
 	if err != nil {
 		return fmt.Errorf("failed to put record %s: %w", key, err)
 	}
@@ -81,14 +114,18 @@ func (r *Repository) Put(ctx context.Context, key string, metadata json.RawMessa
 	return r.PutRaw(ctx, key, metadata, payload)
 }
 
-// GetRaw retrieves a record from crm_store by its primary key without attempting decryption.
+// GetRaw retrieves a record from the repository table by its primary key without attempting decryption.
 func (r *Repository) GetRaw(ctx context.Context, key string) (*Record, error) {
-	query := `SELECT key, metadata, data FROM crm_store WHERE key = ?;`
+	quotedTable, err := QuoteIdent(r.TableName())
+	if err != nil {
+		return nil, err
+	}
+	query := fmt.Sprintf(`SELECT key, metadata, data FROM %s WHERE key = ?;`, quotedTable)
 	row := r.db.QueryRowContext(ctx, query, key)
 
 	var rec Record
 	var metaStr string
-	err := row.Scan(&rec.Key, &metaStr, &rec.Data)
+	err = row.Scan(&rec.Key, &metaStr, &rec.Data)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -124,11 +161,15 @@ func (r *Repository) Get(ctx context.Context, key string) (*Record, error) {
 	return rec, nil
 }
 
-// Delete removes a record by key from crm_store. If a KeyRegistry is configured,
+// Delete removes a record by key from the repository table. If a KeyRegistry is configured,
 // the customer's symmetric key is permanently purged (crypto-shredding).
 func (r *Repository) Delete(ctx context.Context, key string) error {
-	query := `DELETE FROM crm_store WHERE key = ?;`
-	_, err := r.db.ExecContext(ctx, query, key)
+	quotedTable, err := QuoteIdent(r.TableName())
+	if err != nil {
+		return err
+	}
+	query := fmt.Sprintf(`DELETE FROM %s WHERE key = ?;`, quotedTable)
+	_, err = r.db.ExecContext(ctx, query, key)
 	if err != nil {
 		return fmt.Errorf("failed to delete record %s: %w", key, err)
 	}
@@ -142,13 +183,17 @@ func (r *Repository) Delete(ctx context.Context, key string) error {
 
 // List returns records matching a key prefix with pagination, decrypting payloads when keys are available.
 func (r *Repository) List(ctx context.Context, prefix string, limit, offset int) ([]Record, error) {
-	query := `
+	quotedTable, err := QuoteIdent(r.TableName())
+	if err != nil {
+		return nil, err
+	}
+	query := fmt.Sprintf(`
 	SELECT key, metadata, data
-	FROM crm_store
+	FROM %s
 	WHERE key LIKE ?
 	ORDER BY key ASC
 	LIMIT ? OFFSET ?;
-	`
+	`, quotedTable)
 	rows, err := r.db.QueryContext(ctx, query, prefix+"%", limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list records: %w", err)
@@ -184,9 +229,13 @@ func (r *Repository) List(ctx context.Context, prefix string, limit, offset int)
 
 // Count returns the number of records with keys starting with the given prefix.
 func (r *Repository) Count(ctx context.Context, prefix string) (int, error) {
-	query := `SELECT count(*) FROM crm_store WHERE key LIKE ?;`
+	quotedTable, err := QuoteIdent(r.TableName())
+	if err != nil {
+		return 0, err
+	}
+	query := fmt.Sprintf(`SELECT count(*) FROM %s WHERE key LIKE ?;`, quotedTable)
 	var count int
-	err := r.db.QueryRowContext(ctx, query, prefix+"%").Scan(&count)
+	err = r.db.QueryRowContext(ctx, query, prefix+"%").Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count records: %w", err)
 	}

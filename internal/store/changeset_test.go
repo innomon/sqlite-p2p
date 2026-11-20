@@ -49,6 +49,77 @@ func TestChangesetEncodeDecode(t *testing.T) {
 	if string(decoded.Metadata) != string(cs.Metadata) {
 		t.Errorf("expected metadata %s, got %s", string(cs.Metadata), string(decoded.Metadata))
 	}
+	// Legacy changesets with empty Table should default to "crm_store"
+	if decoded.Table != "crm_store" {
+		t.Errorf("expected default table crm_store, got %q", decoded.Table)
+	}
+}
+
+func TestChangesetMultiTableAndDDL(t *testing.T) {
+	// 1. Test OpDDL changeset
+	ddlCS := &store.Changeset{
+		Timestamp: time.Now().UnixNano(),
+		Sequence:  1,
+		Operation: store.OpDDL,
+		Table:     "orders",
+		Key:       "schema:orders",
+		DDL:       "CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, status TEXT, total REAL)",
+	}
+	rawDDL, err := ddlCS.Encode()
+	if err != nil {
+		t.Fatalf("encode DDL changeset failed: %v", err)
+	}
+	decDDL, err := store.DecodeChangeset(rawDDL)
+	if err != nil {
+		t.Fatalf("decode DDL changeset failed: %v", err)
+	}
+	if decDDL.Operation != store.OpDDL {
+		t.Errorf("expected OpDDL (%d), got %d", store.OpDDL, decDDL.Operation)
+	}
+	if decDDL.Table != "orders" {
+		t.Errorf("expected table orders, got %s", decDDL.Table)
+	}
+	if decDDL.DDL != ddlCS.DDL {
+		t.Errorf("expected DDL %q, got %q", ddlCS.DDL, decDDL.DDL)
+	}
+
+	// 2. Test Relational table changeset with Columns
+	relCS := &store.Changeset{
+		Timestamp: time.Now().UnixNano(),
+		Sequence:  2,
+		Operation: store.OpInsert,
+		Table:     "orders",
+		Key:       "ord-1001",
+		Columns: map[string]json.RawMessage{
+			"id":     json.RawMessage(`"ord-1001"`),
+			"status": json.RawMessage(`"PAID"`),
+			"total":  json.RawMessage(`249.50`),
+		},
+	}
+	rawRel, err := relCS.Encode()
+	if err != nil {
+		t.Fatalf("encode relational changeset failed: %v", err)
+	}
+	decRel, err := store.DecodeChangeset(rawRel)
+	if err != nil {
+		t.Fatalf("decode relational changeset failed: %v", err)
+	}
+	if decRel.Table != "orders" {
+		t.Errorf("expected table orders, got %s", decRel.Table)
+	}
+	if string(decRel.Columns["status"]) != `"PAID"` {
+		t.Errorf("expected status \"PAID\", got %s", string(decRel.Columns["status"]))
+	}
+
+	// 3. Test Legacy JSON payload without "table" field defaults to "crm_store"
+	legacyJSON := []byte(`{"timestamp":123456789,"seq":10,"op":1,"key":"cust:1","metadata":{"v":1},"data":"aGVsbG8="}`)
+	decLegacy, err := store.DecodeChangeset(legacyJSON)
+	if err != nil {
+		t.Fatalf("decode legacy JSON failed: %v", err)
+	}
+	if decLegacy.Table != "crm_store" {
+		t.Errorf("expected legacy changeset Table to default to crm_store, got %q", decLegacy.Table)
+	}
 }
 
 func TestChangesetTrackerAndApply(t *testing.T) {

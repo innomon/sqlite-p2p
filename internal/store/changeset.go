@@ -20,18 +20,34 @@ const (
 	OpUpdate OperationType = 2
 	// OpDelete represents a record deletion.
 	OpDelete OperationType = 3
+	// OpDDL represents a schema creation or evolution statement.
+	OpDDL OperationType = 4
 )
 
-// Changeset represents a single atomic mutation to the crm_store table,
+// DefaultTableName is the default primary KV repository table name.
+const DefaultTableName = "crm_store"
+
+// Changeset represents a single atomic mutation to a SQLite table,
 // suitable for replication over Autobase/Hypercore.
 type Changeset struct {
-	Timestamp int64           `json:"timestamp"`
-	Sequence  uint64          `json:"seq"`
-	Operation OperationType   `json:"op"`
-	Key       string          `json:"key"`
-	Metadata  json.RawMessage `json:"metadata,omitempty"`
-	Data      []byte          `json:"data,omitempty"`
-	PrevHash  []byte          `json:"prev_hash,omitempty"`
+	Timestamp int64                      `json:"timestamp"`
+	Sequence  uint64                     `json:"seq"`
+	Operation OperationType              `json:"op"`
+	Table     string                     `json:"table,omitempty"`
+	Key       string                     `json:"key"`
+	Metadata  json.RawMessage            `json:"metadata,omitempty"`
+	Data      []byte                     `json:"data,omitempty"`
+	Columns   map[string]json.RawMessage `json:"columns,omitempty"`
+	DDL       string                     `json:"ddl,omitempty"`
+	PrevHash  []byte                     `json:"prev_hash,omitempty"`
+}
+
+// EffectiveTable returns the target table name, defaulting to "crm_store" when empty.
+func (c *Changeset) EffectiveTable() string {
+	if c == nil || c.Table == "" {
+		return DefaultTableName
+	}
+	return c.Table
 }
 
 // Encode serializes the Changeset to JSON bytes.
@@ -40,10 +56,14 @@ func (c *Changeset) Encode() ([]byte, error) {
 }
 
 // DecodeChangeset deserializes bytes into a Changeset.
+// Legacy changesets without a Table field default to "crm_store".
 func DecodeChangeset(data []byte) (*Changeset, error) {
 	var c Changeset
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("failed to decode changeset: %w", err)
+	}
+	if c.Table == "" {
+		c.Table = DefaultTableName
 	}
 	return &c, nil
 }
@@ -110,6 +130,7 @@ func (t *ChangesetTracker) Put(ctx context.Context, key string, metadata json.Ra
 		Timestamp: time.Now().UnixNano(),
 		Sequence:  t.seq.Add(1),
 		Operation: op,
+		Table:     t.repo.TableName(),
 		Key:       key,
 		Metadata:  metadata,
 		Data:      storedData,
@@ -130,6 +151,7 @@ func (t *ChangesetTracker) Delete(ctx context.Context, key string) error {
 		Timestamp: time.Now().UnixNano(),
 		Sequence:  t.seq.Add(1),
 		Operation: OpDelete,
+		Table:     t.repo.TableName(),
 		Key:       key,
 	}
 
