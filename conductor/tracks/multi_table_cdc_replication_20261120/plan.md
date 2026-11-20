@@ -39,12 +39,12 @@
     - [x] Add `DefaultTable`, `IncludeTables`, `ExcludeTables`, and `CDCInterval` options to `pkg/p2p.EngineOptions` and `pkg/config.NodeConfig`
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Multi-Table ReplicationEngine, LWW Scoping & Outbox Poller' (Protocol in workflow.md) 19df708
 
-## Phase 4: End-to-End Multi-Node Swarm Replication Verification (`tests/` & `cmd/e2e-replication`)
+## Phase 4: End-to-End Multi-Node Swarm Replication Verification (`tests/` & `cmd/e2e-replication`) [checkpoint: faa7d03]
 
-- [~] Task: Write End-to-End Multi-Table Swarm Replication Tests (TDD Red Phase)
-    - [ ] Create E2E test with Node A initialized with a `kheti-badi-ecom` `ecom_store` table and a custom `orders` table, replicating over Hyperswarm to Node B (which starts with an empty DB)
-    - [ ] Verify that direct SQL `INSERT`, `UPDATE`, and `DELETE` via `sql` CLI / `*sql.DB` on Node A replicate to Node B and vice versa without replication loops
-- [ ] Task: Wire `sql` CLI Trigger Refresh & Pass Full Quality Gates (TDD Green Phase)
-    - [ ] Trigger immediate `DrainCDCOutbox` and schema discovery refresh after `sql` / `/sql` command execution in `cmd/e2e-replication/main.go`
-    - [ ] Run full test suite (`go test -v -cover ./...`) and verify >80% coverage across all packages
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: End-to-End Multi-Node Swarm Replication Verification' (Protocol in workflow.md)
+- [x] Task: Write End-to-End Multi-Table Swarm Replication Tests (TDD Red Phase) f2dad28
+    - [x] Create E2E test with Node A initialized with a `kheti-badi-ecom` `ecom_store` table and a custom `orders` table, replicating over Hyperswarm to Node B (which starts with an empty DB)
+    - [x] Verify that direct SQL `INSERT`, `UPDATE`, and `DELETE` via `sql` CLI / `*sql.DB` on Node A replicate to Node B and vice versa without replication loops
+- [x] Task: Wire `sql` CLI Trigger Refresh & Pass Full Quality Gates (TDD Green Phase) f2dad28
+    - [x] Trigger immediate `DrainCDCOutbox` and schema discovery refresh after `sql` / `/sql` command execution in `cmd/e2e-replication/main.go`
+    - [x] Run full test suite (`go test -v -cover ./...`) and verify >80% coverage across all packages
+- [x] Task: Conductor - User Manual Verification 'Phase 4: End-to-End Multi-Node Swarm Replication Verification' (Protocol in workflow.md) faa7d03
