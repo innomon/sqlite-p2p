@@ -25,17 +25,21 @@ import (
 
 // EngineOptions configures the decentralized sqlite-p2p engine.
 type EngineOptions struct {
-	DBPath       string
-	DB           *sql.DB
-	EnableWAL    bool
-	EnableCrypto bool
-	SwarmTopic   [32]byte
-	SwarmPort    int
-	Bootstrap    []string
-	KeyPair      *secretstream.KeyPair
-	Policy       *policy.ReplicationPolicy
-	KeyRegistry  *crypto.KeyRegistry
-	Logger       *slog.Logger
+	DBPath        string
+	DB            *sql.DB
+	DefaultTable  string
+	IncludeTables []string
+	ExcludeTables []string
+	CDCInterval   time.Duration
+	EnableWAL     bool
+	EnableCrypto  bool
+	SwarmTopic    [32]byte
+	SwarmPort     int
+	Bootstrap     []string
+	KeyPair       *secretstream.KeyPair
+	Policy        *policy.ReplicationPolicy
+	KeyRegistry   *crypto.KeyRegistry
+	Logger        *slog.Logger
 }
 
 // Engine encapsulates the pure Go SQLite storage, cryptographic security,
@@ -86,7 +90,7 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 		}
 	}
 
-	repo := store.NewRepository(db)
+	repo := store.NewRepositoryWithTable(db, opts.DefaultTable)
 	if keys != nil {
 		repo.SetKeyRegistry(keys)
 	}
@@ -135,6 +139,7 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 		}
 
 		replEngine := internalp2p.NewReplicationEngine(repo, feed, replicator)
+		replEngine.SetTableFilters(opts.IncludeTables, opts.ExcludeTables)
 		if opts.Logger != nil {
 			replEngine.SetLogger(opts.Logger)
 		}
@@ -143,8 +148,9 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 			return replEngine.ApplyRemoteChangeset(context.Background(), cs)
 		})
 
-		// Backfill/seed any existing records from SQLite repository into changeset feed
+		// Backfill/seed any existing records from all discovered SQLite tables into changeset feed
 		_, _ = replEngine.SeedFromRepository(context.Background())
+		replEngine.StartCDCPoller(opts.CDCInterval)
 
 		swarmMgr, err := internalp2p.NewSwarmManager(internalp2p.SwarmManagerOptions{
 			Port:      opts.SwarmPort,
@@ -221,13 +227,16 @@ func OpenEngineFromNodeConfig(cfg *config.NodeConfig) (*Engine, error) {
 	bootstrap = append(bootstrap, cfg.PeerAddrs...)
 
 	opts := EngineOptions{
-		DBPath:       cfg.DBPath,
-		EnableWAL:    cfg.EnableWAL,
-		EnableCrypto: cfg.EnableCrypto,
-		SwarmTopic:   topic,
-		SwarmPort:    cfg.SwarmPort,
-		Bootstrap:    bootstrap,
-		Policy:       pol,
+		DBPath:        cfg.DBPath,
+		DefaultTable:  cfg.DefaultTable,
+		IncludeTables: cfg.IncludeTables,
+		ExcludeTables: cfg.ExcludeTables,
+		EnableWAL:     cfg.EnableWAL,
+		EnableCrypto:  cfg.EnableCrypto,
+		SwarmTopic:    topic,
+		SwarmPort:     cfg.SwarmPort,
+		Bootstrap:     bootstrap,
+		Policy:        pol,
 	}
 
 	engine, err := OpenEngine(opts)
@@ -373,10 +382,25 @@ func (e *Engine) Delete(ctx context.Context, key string) error {
 	return e.tracker.Delete(ctx, key)
 }
 
+// DrainCDCOutbox triggers an immediate scan for new tables and drains pending SQLite CDC outbox entries.
+func (e *Engine) DrainCDCOutbox(ctx context.Context) (int, error) {
+	e.mu.RLock()
+	repl := e.replEngine
+	e.mu.RUnlock()
+	if repl == nil {
+		return 0, nil
+	}
+	return repl.DrainCDCOutbox(ctx)
+}
+
 // Close closes the engine and releases underlying database and network resources.
 func (e *Engine) Close() error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+
+	if e.replEngine != nil {
+		e.replEngine.StopCDCPoller()
+	}
 
 	if e.swarm != nil {
 		_ = e.swarm.Close()

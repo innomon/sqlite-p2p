@@ -32,6 +32,7 @@ const (
 	OpInsert = store.OpInsert
 	OpUpdate = store.OpUpdate
 	OpDelete = store.OpDelete
+	OpDDL    = store.OpDDL
 )
 
 // DecodeChangeset deserializes bytes into a Changeset.
@@ -55,9 +56,14 @@ func OpenDB(dbPath string, enableWAL bool) (*sql.DB, error) {
 	return store.OpenDB(dbPath, enableWAL)
 }
 
-// NewRepository initializes a Repository on the provided sql.DB.
+// NewRepository initializes a Repository on the provided sql.DB targeting crm_store.
 func NewRepository(db *sql.DB) *Repository {
 	return store.NewRepository(db)
+}
+
+// NewRepositoryWithTable initializes a Repository on the provided sql.DB targeting tableName.
+func NewRepositoryWithTable(db *sql.DB, tableName string) *Repository {
+	return store.NewRepositoryWithTable(db, tableName)
 }
 
 // NewChangesetTracker initializes a ChangesetTracker for the repository.

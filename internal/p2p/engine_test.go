@@ -366,5 +366,158 @@ func TestEngineEncryptedReplicationAndCryptoShredding(t *testing.T) {
 	}
 }
 
+func TestEngineMultiTableLWWScopingAndSeedAndDrainOutbox(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	db1, err := store.OpenDB(":memory:", false)
+	if err != nil {
+		t.Fatalf("OpenDB db1: %v", err)
+	}
+	defer db1.Close()
+
+	// Create ecom_store and orders on db1 and pre-populate rows before seeding
+	_, err = db1.Exec(`
+		CREATE TABLE ecom_store (
+			key TEXT PRIMARY KEY,
+			metadata TEXT CHECK(json_valid(metadata)),
+			data BLOB
+		) WITHOUT ROWID;
+		CREATE TABLE orders (
+			id TEXT PRIMARY KEY,
+			status TEXT,
+			total REAL
+		);
+		INSERT INTO crm_store (key, metadata, data) VALUES ('shared:1', '{"src":"crm"}', 'crm-payload');
+		INSERT INTO ecom_store (key, metadata, data) VALUES ('shared:1', '{"src":"ecom"}', 'ecom-payload');
+		INSERT INTO orders (id, status, total) VALUES ('ord:1', 'PAID', 99.95);
+	`)
+	if err != nil {
+		t.Fatalf("pre-populate db1 failed: %v", err)
+	}
+
+	repo1 := store.NewRepository(db1)
+	feed1, err := p2p.NewChangesetFeed(filepath.Join(tempDir, "feed1"))
+	if err != nil {
+		t.Fatalf("feed1 init: %v", err)
+	}
+	engine1 := p2p.NewReplicationEngine(repo1, feed1, nil)
+	engine1.SetTableFilters(nil, nil)
+
+	// 1. SeedFromRepository should seed all discovered tables (crm_store, ecom_store, orders) + install triggers
+	seededCount, err := engine1.SeedFromRepository(ctx)
+	if err != nil {
+		t.Fatalf("SeedFromRepository failed: %v", err)
+	}
+	if seededCount < 5 { // ecom_store DDL+Insert, orders DDL+Insert, crm_store Insert
+		t.Fatalf("expected at least 5 seeded changesets across all tables, got %d", seededCount)
+	}
+
+	// 2. Apply all seeded changesets to Node 2 (which starts with an empty DB)
+	db2, err := store.OpenDB(":memory:", false)
+	if err != nil {
+		t.Fatalf("OpenDB db2: %v", err)
+	}
+	defer db2.Close()
+
+	repo2 := store.NewRepository(db2)
+	feed2, err := p2p.NewChangesetFeed(filepath.Join(tempDir, "feed2"))
+	if err != nil {
+		t.Fatalf("feed2 init: %v", err)
+	}
+	engine2 := p2p.NewReplicationEngine(repo2, feed2, nil)
+
+	err = feed1.Replay(0, func(cs *store.Changeset) error {
+		return engine2.ApplyRemoteChangeset(ctx, cs)
+	})
+	if err != nil {
+		t.Fatalf("replay seeded changesets onto engine2 failed: %v", err)
+	}
+
+	// Verify table-scoped LWW: 'shared:1' in crm_store vs 'shared:1' in ecom_store must NOT collide!
+	crmRec, err := repo2.Get(ctx, "shared:1")
+	if err != nil || string(crmRec.Data) != "crm-payload" {
+		t.Fatalf("expected crm_store['shared:1'] = 'crm-payload', got %+v (err=%v)", crmRec, err)
+	}
+	ecomRepo2 := store.NewRepositoryWithTable(db2, "ecom_store")
+	ecomRec, err := ecomRepo2.Get(ctx, "shared:1")
+	if err != nil || string(ecomRec.Data) != "ecom-payload" {
+		t.Fatalf("expected ecom_store['shared:1'] = 'ecom-payload', got %+v (err=%v)", ecomRec, err)
+	}
+
+	// Verify orders table and row on db2
+	var status string
+	if err := db2.QueryRow(`SELECT status FROM orders WHERE id = 'ord:1'`).Scan(&status); err != nil || status != "PAID" {
+		t.Fatalf("expected orders['ord:1'] = 'PAID' on db2, got %q (err=%v)", status, err)
+	}
+
+	// 3. Direct SQL mutation on db1 -> DrainCDCOutbox -> ApplyRemoteChangeset on db2
+	prevLen := feed1.Len()
+	if _, err := db1.Exec(`INSERT INTO ecom_store (key, metadata, data) VALUES ('prod:777', '{"type":"seed"}', 'Millet');`); err != nil {
+		t.Fatalf("direct SQL insert on db1 failed: %v", err)
+	}
+	if _, err := db1.Exec(`UPDATE orders SET status = 'DELIVERED' WHERE id = 'ord:1';`); err != nil {
+		t.Fatalf("direct SQL update on db1 failed: %v", err)
+	}
+
+	drained, err := engine1.DrainCDCOutbox(ctx)
+	if err != nil {
+		t.Fatalf("DrainCDCOutbox failed: %v", err)
+	}
+	if drained != 2 {
+		t.Fatalf("expected 2 drained changesets from CDC outbox, got %d", drained)
+	}
+	if feed1.Len() != prevLen+2 {
+		t.Fatalf("expected feed1 length %d, got %d", prevLen+2, feed1.Len())
+	}
+
+	// Replay the newly drained changesets onto engine2
+	err = feed1.Replay(prevLen, func(cs *store.Changeset) error {
+		return engine2.ApplyRemoteChangeset(ctx, cs)
+	})
+	if err != nil {
+		t.Fatalf("replay drained changesets onto engine2 failed: %v", err)
+	}
+
+	rec777, err := ecomRepo2.Get(ctx, "prod:777")
+	if err != nil || string(rec777.Data) != "Millet" {
+		t.Fatalf("expected prod:777 in ecom_store on db2, got %+v (err=%v)", rec777, err)
+	}
+	if err := db2.QueryRow(`SELECT status FROM orders WHERE id = 'ord:1'`).Scan(&status); err != nil || status != "DELIVERED" {
+		t.Fatalf("expected orders['ord:1'] = 'DELIVERED' on db2, got %q (err=%v)", status, err)
+	}
+
+	// 4. Dynamically create a brand new table at runtime on db1 and verify StartCDCPoller discovers & emits OpDDL + rows
+	engine1.StartCDCPoller(25 * time.Millisecond)
+	defer engine1.StopCDCPoller()
+
+	prevLen2 := feed1.Len()
+	if _, err := db1.Exec(`
+		CREATE TABLE inventory (sku TEXT PRIMARY KEY, qty INTEGER);
+		INSERT INTO inventory (sku, qty) VALUES ('SKU-10', 42);
+	`); err != nil {
+		t.Fatalf("create inventory table failed: %v", err)
+	}
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if feed1.Len() >= prevLen2+2 {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if feed1.Len() < prevLen2+2 {
+		t.Fatalf("expected poller to emit OpDDL and OpInsert for newly created inventory table, got feed len %d (was %d)", feed1.Len(), prevLen2)
+	}
+
+	// Restart poller when already running to cover cancel branch
+	engine1.StartCDCPoller(0)
+	var logBuf bytes.Buffer
+	engine1.SetLogger(logger.NewJSONLogger(&logBuf, "DEBUG"))
+	_ = engine1.PutLocal(ctx, "logged:1", json.RawMessage(`{"ok":true}`), []byte("val"))
+	_ = engine1.DeleteLocal(ctx, "logged:1")
+	_, _ = engine1.SyncPeers(ctx)
+}
+
 
 

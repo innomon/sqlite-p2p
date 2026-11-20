@@ -59,5 +59,26 @@ func TestStoreExports(t *testing.T) {
 		t.Fatalf("NewSwarmManager failed: %v", err)
 	}
 	defer swarm.Close()
+
+	customRepo := p2p.NewRepositoryWithTable(db, "crm_store")
+	if customRepo == nil || customRepo.TableName() != "crm_store" {
+		t.Fatalf("expected customRepo targeting crm_store")
+	}
+
+	cs := &p2p.Changeset{
+		Operation: p2p.OpInsert,
+		Key:       "k1",
+		Metadata:  []byte(`{"ok":true}`),
+		Data:      []byte("v1"),
+	}
+	raw, _ := cs.Encode()
+	dec, err := p2p.DecodeChangeset(raw)
+	if err != nil {
+		t.Fatalf("DecodeChangeset failed: %v", err)
+	}
+	if err := p2p.ApplyChangeset(ctx, customRepo, dec); err != nil {
+		t.Fatalf("ApplyChangeset failed: %v", err)
+	}
+	_ = p2p.NormalizeDHTAddr("0.0.0.0:4000")
 }
 

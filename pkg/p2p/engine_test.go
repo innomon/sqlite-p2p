@@ -283,4 +283,82 @@ func TestEngine_OpenFromConfig(t *testing.T) {
 	}
 }
 
+func TestEngine_CustomDefaultTableAndCDCPoller(t *testing.T) {
+	ctx := context.Background()
+	db, err := store.OpenDB(":memory:", false)
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer db.Close()
+
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS ecom_store (
+			key TEXT PRIMARY KEY,
+			metadata TEXT CHECK(json_valid(metadata)),
+			data BLOB
+		) WITHOUT ROWID;
+	`)
+	if err != nil {
+		t.Fatalf("create ecom_store failed: %v", err)
+	}
+
+	var topic [32]byte
+	copy(topic[:], "test-ecom-default-table-topic123")
+
+	engine, err := p2p.OpenEngine(p2p.EngineOptions{
+		DB:           db,
+		DefaultTable: "ecom_store",
+		SwarmTopic:   topic,
+	})
+	if err != nil {
+		t.Fatalf("OpenEngine failed: %v", err)
+	}
+	defer engine.Close()
+
+	if engine.Repository().TableName() != "ecom_store" {
+		t.Fatalf("expected default repository table ecom_store, got %s", engine.Repository().TableName())
+	}
+
+	// Direct SQL write on ecom_store should be captured by CDC outbox drainer
+	if _, err := db.Exec(`INSERT INTO ecom_store (key, metadata, data) VALUES ('sku:10', '{"v":1}', 'Organic Rice');`); err != nil {
+		t.Fatalf("direct SQL insert failed: %v", err)
+	}
+
+	drained, err := engine.DrainCDCOutbox(ctx)
+	if err != nil {
+		t.Fatalf("engine.DrainCDCOutbox failed: %v", err)
+	}
+	if drained < 1 {
+		t.Fatalf("expected at least 1 drained CDC outbox changeset, got %d", drained)
+	}
+
+	// Test accessors and List/GetRaw
+	if engine.ChangesetFeed() == nil || engine.Replicator() == nil || engine.Swarm() == nil {
+		t.Errorf("expected non-nil ChangesetFeed, Replicator, and Swarm")
+	}
+	rawRec, err := engine.GetRaw(ctx, "sku:10")
+	if err != nil || string(rawRec.Data) != "Organic Rice" {
+		t.Errorf("unexpected GetRaw result: %+v (err=%v)", rawRec, err)
+	}
+	listRecs, err := engine.List(ctx, "sku:", 10, 0)
+	if err != nil || len(listRecs) != 1 {
+		t.Errorf("unexpected List result: %+v (err=%v)", listRecs, err)
+	}
+
+	// Also test non-swarm engine methods and nil config error
+	if _, err := p2p.OpenEngineFromNodeConfig(nil); err == nil {
+		t.Errorf("expected error for nil NodeConfig")
+	}
+	noSwarmEng, err := p2p.OpenEngine(p2p.EngineOptions{DBPath: ":memory:"})
+	if err != nil {
+		t.Fatalf("OpenEngine no-swarm failed: %v", err)
+	}
+	defer noSwarmEng.Close()
+	_, _ = noSwarmEng.DrainCDCOutbox(ctx)
+	noSwarmEng.SetPolicy(policy.New(policy.ModeAllAllowed))
+	_ = noSwarmEng.Policy()
+	_ = noSwarmEng.DisconnectPeer([32]byte{})
+	_ = noSwarmEng.EvictDisallowed()
+}
+
 

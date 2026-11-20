@@ -11,16 +11,19 @@ import (
 
 // NodeConfig defines the comprehensive node and replication configuration.
 type NodeConfig struct {
-	NodeID       string         `json:"node_id" yaml:"node_id"`
-	SwarmTopic   string         `json:"swarm_topic" yaml:"swarm_topic"`
-	SwarmPort    int            `json:"swarm_port" yaml:"swarm_port"`
-	Bootstrap    []string       `json:"bootstrap" yaml:"bootstrap"`
-	PeerAddrs    []string       `json:"peer_addrs" yaml:"peer_addrs"`
-	DBPath       string         `json:"db_path" yaml:"db_path"`
-	EnableWAL    bool           `json:"enable_wal" yaml:"enable_wal"`
-	EnableCrypto bool           `json:"enable_crypto" yaml:"enable_crypto"`
-	AutoSync     bool           `json:"auto_sync" yaml:"auto_sync"`
-	Replication  *policy.Config `json:"replication,omitempty" yaml:"replication,omitempty"`
+	NodeID        string         `json:"node_id" yaml:"node_id"`
+	SwarmTopic    string         `json:"swarm_topic" yaml:"swarm_topic"`
+	SwarmPort     int            `json:"swarm_port" yaml:"swarm_port"`
+	Bootstrap     []string       `json:"bootstrap" yaml:"bootstrap"`
+	PeerAddrs     []string       `json:"peer_addrs" yaml:"peer_addrs"`
+	DBPath        string         `json:"db_path" yaml:"db_path"`
+	DefaultTable  string         `json:"default_table,omitempty" yaml:"default_table,omitempty"`
+	IncludeTables []string       `json:"include_tables,omitempty" yaml:"include_tables,omitempty"`
+	ExcludeTables []string       `json:"exclude_tables,omitempty" yaml:"exclude_tables,omitempty"`
+	EnableWAL     bool           `json:"enable_wal" yaml:"enable_wal"`
+	EnableCrypto  bool           `json:"enable_crypto" yaml:"enable_crypto"`
+	AutoSync      bool           `json:"auto_sync" yaml:"auto_sync"`
+	Replication   *policy.Config `json:"replication,omitempty" yaml:"replication,omitempty"`
 }
 
 // LoadConfig parses a NodeConfig struct from an io.Reader stream containing JSON.
