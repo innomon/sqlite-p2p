@@ -7,8 +7,8 @@
 
 ## 2. Storage & Database Architecture
 - **Primary Embedded Store**: SQLite compiled in Pure Go (`modernc.org/sqlite`) running in WAL mode (`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON;`).
-- **Schema & Query Model**: Single-table key-value storage (`crm_store`) with `key TEXT PRIMARY KEY`, `metadata TEXT CHECK(json_valid(metadata))`, and `data BLOB WITHOUT ROWID`.
-- **Change Data Capture**: SQLite Session API / changeset capture logic and changeset apply (`sqlite3changeset_apply`) with causal ordering.
+- **Schema & Query Model**: Universal multi-table storage supporting both fast-path KV tables (`crm_store`, `ecom_store` with `key TEXT PRIMARY KEY, metadata TEXT CHECK(json_valid(metadata)), data BLOB WITHOUT ROWID`) and arbitrary relational SQLite tables (single PK, composite PK, or `rowid`).
+- **Change Data Capture**: Pure Go SQLite trigger-based CDC outbox (`_p2p_cdc_outbox`) and transactional remote-apply guard (`_p2p_sync_state`), paired with schema auto-discovery (`sqlite_master` + `PRAGMA table_info`) and table-scoped LWW conflict resolution.
 
 ## 3. Decentralized P2P Protocol Stack (Pear / Holepunch)
 - **Local Pure Go Pear Engine**: Referenced from `/home/innomon/B204-zone/owly-sewa/go-pear`.
