@@ -90,6 +90,10 @@ func TestVectorEmbeddingsMultiTableP2PReplication(t *testing.T) {
 	var topDocRef string
 	var topSim float64
 	for time.Now().Before(deadline) {
+		if nodeB.Swarm().PeerCount() == 0 {
+			_ = nodeB.Swarm().ConnectDirect("127.0.0.1", nodeA.Swarm().Port())
+		}
+		_, _ = nodeA.ReplicationEngine().SyncPeers(ctx)
 		err := nodeB.DB().QueryRow(`
 			SELECT doc_ref, vec_cosine_similarity(embedding, ?) AS sim
 			FROM document_embeddings
