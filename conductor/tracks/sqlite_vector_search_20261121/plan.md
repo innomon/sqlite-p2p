@@ -14,9 +14,9 @@
     - [x] Run tests and benchmarks (`go test -v -bench=. ./pkg/vect/...`) to verify all scalar SQL tests pass and the 10k x 768d scan meets the <15ms target.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: SQLite Scalar Function Registration & Performance Benchmark (`pkg/vect`)' (Protocol in workflow.md) 86db409
 
-## Phase 3: Store Integration, Repository Helpers & Multi-Table P2P Vector Replication
+## Phase 3: Store Integration, Repository Helpers & Multi-Table P2P Vector Replication [checkpoint: f438857]
 - [x] Task: Integrate `pkg/vect` into `internal/store`, `pkg/p2p`, and verify multi-table P2P vector replication 603915d
     - [x] Write failing unit and E2E tests in `internal/store/vector_test.go`, `pkg/p2p/store_test.go`, and `tests/vector_p2p_e2e_test.go` testing automatic registration on `OpenDB()`, `Repository.PutVector`, `Repository.GetVector`, `Repository.SearchSimilar`, `pkg/p2p` vector exports, and multi-node P2P CDC replication of both `Repository` vector records and custom `document_embeddings` relational vector tables.
     - [x] Update `internal/store/db.go` to automatically register `pkg/vect` functions, implement `internal/store/vector.go` (`VectorMatch`, `PutVector`, `GetVector`, `SearchSimilar`), and re-export vector types and helpers in `pkg/p2p/store.go`.
     - [x] Update `conductor/product.md` and `conductor/tech-stack.md` to document the Pure Go SQLite Vector Search Extension (`pkg/vect`), and run the full test suite (`go test -race ./...`).
-- [~] Task: Conductor - User Manual Verification 'Phase 3: Store Integration, Repository Helpers & Multi-Table P2P Vector Replication' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Store Integration, Repository Helpers & Multi-Table P2P Vector Replication' (Protocol in workflow.md) f438857
