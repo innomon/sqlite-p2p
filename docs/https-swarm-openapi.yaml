@@ -1,0 +1,375 @@
+openapi: 3.1.0
+info:
+  title: SQLite-P2P Secure HTTPS Swarm Discovery Registry API
+  version: 1.0.0
+  summary: Stateless HTTPS Peer Discovery & Bootstrap Registry emulating HyperDHT seed nodes across LANs and firewalls.
+  description: |
+    Provides a firewall-friendly, stateless REST peer discovery and rendezvous service for `sqlite-p2p` clusters.
+    Nodes behind corporate firewalls or separate LANs periodically announce their routable endpoints and discover
+    authorized peers per 32-byte swarm topic (64-character hex string) while authenticating via Bearer API token
+    and Ed25519 cryptographic request signatures.
+servers:
+  - url: https://swarm-registry.example.com
+    description: Production HTTPS Swarm Discovery Registry
+  - url: http://localhost:8443
+    description: Local development / test registry instance
+
+security:
+  - BearerAuth: []
+    PeerPublicKeyHeader: []
+    PeerSigningKeyHeader: []
+    PeerTimestampHeader: []
+    PeerSignatureHeader: []
+
+paths:
+  /v1/health:
+    get:
+      operationId: getHealth
+      summary: Health and server clock synchronization check
+      description: |
+        Returns the operational health of the registry server and its current UTC Unix epoch timestamp
+        so peers can verify clock alignment within the ±300s signature verification window.
+      responses:
+        "200":
+          description: Registry service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /v1/topics/{topic}/announce:
+    post:
+      operationId: announcePeer
+      summary: Announce or refresh a peer's presence on a swarm topic and return active peers
+      description: |
+        Registers or refreshes the announcing peer's endpoints under the specified 32-byte swarm topic
+        with a bounded TTL, and returns the current list of non-expired peers registered for that topic
+        (completing announce + lookup in a single HTTPS round-trip).
+      parameters:
+        - $ref: "#/components/parameters/TopicParam"
+        - $ref: "#/components/parameters/PeerPublicKeyHeaderParam"
+        - $ref: "#/components/parameters/PeerSigningKeyHeaderParam"
+        - $ref: "#/components/parameters/PeerTimestampHeaderParam"
+        - $ref: "#/components/parameters/PeerSignatureHeaderParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnounceRequest"
+      responses:
+        "200":
+          description: Peer registration accepted and active topic peers returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnnounceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "429":
+          $ref: "#/components/responses/RateLimitedError"
+
+  /v1/topics/{topic}/peers:
+    get:
+      operationId: lookupTopicPeers
+      summary: Query active peers registered for a 32-byte swarm topic
+      description: |
+        Returns all currently active (non-expired) peer records registered for the specified 64-character
+        hex-encoded swarm topic.
+      parameters:
+        - $ref: "#/components/parameters/TopicParam"
+        - name: exclude_pk
+          in: query
+          required: false
+          description: Optional 64-character hex peer public key to exclude from the response (typically the caller's own key).
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{64}$"
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of peer records to return (default 100, max 500).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+        - $ref: "#/components/parameters/PeerPublicKeyHeaderParam"
+        - $ref: "#/components/parameters/PeerSigningKeyHeaderParam"
+        - $ref: "#/components/parameters/PeerTimestampHeaderParam"
+        - $ref: "#/components/parameters/PeerSignatureHeaderParam"
+      responses:
+        "200":
+          description: Active peers for the requested topic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PeersResponse"
+        "400":
+          $ref: "#/components/responses/BadRequestError"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+
+  /v1/topics/{topic}/peers/{peer_pk}:
+    delete:
+      operationId: unannouncePeer
+      summary: Unannounce and remove a peer registration from a swarm topic
+      description: |
+        Removes the peer record identified by `peer_pk` from the specified topic immediately upon graceful
+        node shutdown (`Engine.Close()`). The authenticated `X-Peer-Public-Key` header MUST match `{peer_pk}`.
+      parameters:
+        - $ref: "#/components/parameters/TopicParam"
+        - name: peer_pk
+          in: path
+          required: true
+          description: 64-character hex-encoded 32-byte Swarm/Noise public key of the peer to remove.
+          schema:
+            type: string
+            pattern: "^[0-9a-fA-F]{64}$"
+        - $ref: "#/components/parameters/PeerPublicKeyHeaderParam"
+        - $ref: "#/components/parameters/PeerSigningKeyHeaderParam"
+        - $ref: "#/components/parameters/PeerTimestampHeaderParam"
+        - $ref: "#/components/parameters/PeerSignatureHeaderParam"
+      responses:
+        "204":
+          description: Peer registration removed
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Pre-shared gateway API token (`Authorization: Bearer <api_key>`).
+    PeerPublicKeyHeader:
+      type: apiKey
+      in: header
+      name: X-Peer-Public-Key
+      description: 64-character hex-encoded 32-byte Swarm/Noise public key (`secretstream.KeyPair.Public`).
+    PeerSigningKeyHeader:
+      type: apiKey
+      in: header
+      name: X-Peer-Signing-Key
+      description: 64-character hex-encoded 32-byte Ed25519 public key derived from the node's private seed.
+    PeerTimestampHeader:
+      type: apiKey
+      in: header
+      name: X-Peer-Timestamp
+      description: UTC Unix epoch timestamp in seconds when the request was signed.
+    PeerSignatureHeader:
+      type: apiKey
+      in: header
+      name: X-Peer-Signature
+      description: |
+        128-character hex-encoded 64-byte Ed25519 signature over the canonical string:
+        `METHOD + "\n" + REQUEST_PATH_AND_QUERY + "\n" + TIMESTAMP + "\n" + HEX(SHA256(BODY))`
+
+  parameters:
+    TopicParam:
+      name: topic
+      in: path
+      required: true
+      description: 64-character hex-encoded 32-byte swarm topic key.
+      schema:
+        type: string
+        pattern: "^[0-9a-fA-F]{64}$"
+    PeerPublicKeyHeaderParam:
+      name: X-Peer-Public-Key
+      in: header
+      required: true
+      description: 64-character hex-encoded 32-byte Swarm/Noise public key.
+      schema:
+        type: string
+        pattern: "^[0-9a-fA-F]{64}$"
+    PeerSigningKeyHeaderParam:
+      name: X-Peer-Signing-Key
+      in: header
+      required: true
+      description: 64-character hex-encoded 32-byte Ed25519 public key used to verify `X-Peer-Signature`.
+      schema:
+        type: string
+        pattern: "^[0-9a-fA-F]{64}$"
+    PeerTimestampHeaderParam:
+      name: X-Peer-Timestamp
+      in: header
+      required: true
+      description: UTC Unix epoch timestamp in seconds (must be within ±300s of server clock).
+      schema:
+        type: string
+        example: "1700000000"
+    PeerSignatureHeaderParam:
+      name: X-Peer-Signature
+      in: header
+      required: true
+      description: 128-character hex-encoded Ed25519 signature over the canonical request payload.
+      schema:
+        type: string
+        pattern: "^[0-9a-fA-F]{128}$"
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - server_time
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: ok
+        server_time:
+          type: integer
+          format: int64
+          description: Current server UTC Unix timestamp in seconds.
+          example: 1700000000
+
+    AnnounceRequest:
+      type: object
+      required:
+        - peer_pk
+        - endpoints
+      properties:
+        peer_pk:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+          description: 64-character hex-encoded 32-byte Swarm/Noise public key of the announcing node.
+        signing_pk:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+          description: 64-character hex-encoded 32-byte Ed25519 signing public key of the announcing node.
+        node_id:
+          type: string
+          maxLength: 128
+          description: Human-readable node identifier.
+          example: crm-node-mumbai-01
+        endpoints:
+          type: array
+          minItems: 1
+          maxItems: 16
+          items:
+            type: string
+            description: Direct `host:port` TCP endpoint where the node's Hyperswarm listener accepts connections.
+            example: "203.0.113.10:49737"
+        ttl_sec:
+          type: integer
+          minimum: 15
+          maximum: 3600
+          default: 60
+          description: Requested registration time-to-live in seconds.
+        policy_mode:
+          type: string
+          enum: [all, whitelist, blacklist]
+          default: all
+          description: Informational replication gating mode active on the announcing node.
+
+    PeerRecord:
+      type: object
+      required:
+        - peer_pk
+        - endpoints
+      properties:
+        peer_pk:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+          description: 64-character hex-encoded 32-byte Swarm/Noise public key.
+        signing_pk:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+          description: 64-character hex-encoded 32-byte Ed25519 signing public key.
+        node_id:
+          type: string
+          description: Human-readable node identifier.
+        endpoints:
+          type: array
+          items:
+            type: string
+          description: List of routable `host:port` endpoints for direct Hyperswarm TCP connections.
+        updated_at:
+          type: integer
+          format: int64
+          description: UTC Unix timestamp in seconds when this peer record was last refreshed.
+        expires_at:
+          type: integer
+          format: int64
+          description: UTC Unix timestamp in seconds when this peer record expires if not refreshed.
+
+    AnnounceResponse:
+      type: object
+      required:
+        - topic
+        - ttl_sec
+        - peers
+      properties:
+        topic:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+          description: 64-character hex-encoded 32-byte swarm topic key.
+        ttl_sec:
+          type: integer
+          description: Granted TTL in seconds before the peer record expires.
+          example: 60
+        peers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PeerRecord"
+
+    PeersResponse:
+      type: object
+      required:
+        - topic
+        - peers
+      properties:
+        topic:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+        peers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PeerRecord"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code or summary message.
+        detail:
+          type: string
+          description: Optional human-readable diagnostic explanation.
+
+  responses:
+    BadRequestError:
+      description: Malformed JSON body, invalid hex topic/public key, or missing required fields.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnauthorizedError:
+      description: Missing/invalid Bearer token, expired timestamp skew, or invalid Ed25519 request signature.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ForbiddenError:
+      description: Peer public key is not authorized by server-side access policy or does not match target resource.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    RateLimitedError:
+      description: Too many announce or lookup requests from this peer or IP.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
