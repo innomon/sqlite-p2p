@@ -10,14 +10,14 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Configuration & Cross-LAN Mode Modeling' (Protocol in workflow.md) 49a8181
 
 ## Phase 2: Secure HTTPS Discovery Client & Cryptographic Request Signing (`internal/p2p`)
-- [~] Task: Implement Ed25519 Request Signing and Canonical Verification Helpers
-    - [ ] Write failing unit tests in `internal/p2p/https_registry_test.go` covering canonical payload construction (`METHOD\nPATH_AND_QUERY\nTIMESTAMP\nSHA256_HEX`), Ed25519 signing using `secretstream.KeyPair`, header attachment (`Authorization`, `X-Peer-Public-Key`, `X-Peer-Timestamp`, `X-Peer-Signature`), and signature verification.
-    - [ ] Implement request signing and verification utilities in `internal/p2p/https_registry.go`.
-- [ ] Task: Implement Stateless REST Discovery Client (`HTTPSRegistryClient`) & Background Poller
-    - [ ] Write failing unit tests in `internal/p2p/https_registry_test.go` using `httptest.Server` for `Announce`, `LookupPeers`, `Unannounce`, `Health`, `ReplicationPolicy` filtering, self-PK skipping, and periodic poll/announce worker lifecycle.
-    - [ ] Implement `HTTPSRegistryClient` and background discovery worker in `internal/p2p/https_registry.go`, connecting discovered peers via a dial callback (`SwarmManager.ConnectDirect`).
-    - [ ] Run `go test -v -cover ./internal/p2p/...` and confirm all tests pass with >80% coverage.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Secure HTTPS Discovery Client & Cryptographic Request Signing (`internal/p2p`)' (Protocol in workflow.md)
+- [x] Task: Implement Ed25519 Request Signing and Canonical Verification Helpers 2dd66f2
+    - [x] Write failing unit tests in `internal/p2p/https_registry_test.go` covering canonical payload construction (`METHOD\nPATH_AND_QUERY\nTIMESTAMP\nSHA256_HEX`), Ed25519 signing using `secretstream.KeyPair`, header attachment (`Authorization`, `X-Peer-Public-Key`, `X-Peer-Timestamp`, `X-Peer-Signature`), and signature verification.
+    - [x] Implement request signing and verification utilities in `internal/p2p/https_registry.go`.
+- [x] Task: Implement Stateless REST Discovery Client (`HTTPSRegistryClient`) & Background Poller 2dd66f2
+    - [x] Write failing unit tests in `internal/p2p/https_registry_test.go` using `httptest.Server` for `Announce`, `LookupPeers`, `Unannounce`, `Health`, `ReplicationPolicy` filtering, self-PK skipping, and periodic poll/announce worker lifecycle.
+    - [x] Implement `HTTPSRegistryClient` and background discovery worker in `internal/p2p/https_registry.go`, connecting discovered peers via a dial callback (`SwarmManager.ConnectDirect`).
+    - [x] Run `go test -v -cover ./internal/p2p/...` and confirm all tests pass with >80% coverage.
+- [~] Task: Conductor - User Manual Verification 'Phase 2: Secure HTTPS Discovery Client & Cryptographic Request Signing (`internal/p2p`)' (Protocol in workflow.md)
 
 ## Phase 3: Engine Integration & End-to-End Cross-LAN Replication (`pkg/p2p`)
 - [ ] Task: Integrate `CrossLANMode` and `HTTPSRegistryClient` into `pkg/p2p.Engine`
