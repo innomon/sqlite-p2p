@@ -132,3 +132,46 @@ func NormalizeDHTAddr(addr string) string {
 	return internalp2p.NormalizeDHTAddr(addr)
 }
 
+const (
+	HeaderPeerPublicKey  = internalp2p.HeaderPeerPublicKey
+	HeaderPeerSigningKey = internalp2p.HeaderPeerSigningKey
+	HeaderPeerTimestamp  = internalp2p.HeaderPeerTimestamp
+	HeaderPeerSignature  = internalp2p.HeaderPeerSignature
+)
+
+// HTTPSPeerRecord aliases the peer discovery record returned by the HTTPS Registry API.
+type HTTPSPeerRecord = internalp2p.HTTPSPeerRecord
+
+// HTTPSAnnounceRequest aliases the announce request payload for the HTTPS Registry API.
+type HTTPSAnnounceRequest = internalp2p.HTTPSAnnounceRequest
+
+// HTTPSAnnounceResponse aliases the announce response payload for the HTTPS Registry API.
+type HTTPSAnnounceResponse = internalp2p.HTTPSAnnounceResponse
+
+// HTTPSPeersResponse aliases the peer lookup response payload for the HTTPS Registry API.
+type HTTPSPeersResponse = internalp2p.HTTPSPeersResponse
+
+// HTTPSHealthResponse aliases the health check response payload for the HTTPS Registry API.
+type HTTPSHealthResponse = internalp2p.HTTPSHealthResponse
+
+// HTTPSRegistryOptions aliases the configuration options for HTTPSRegistryClient.
+type HTTPSRegistryOptions = internalp2p.HTTPSRegistryOptions
+
+// HTTPSRegistryClient aliases the stateless HTTPS discovery registry client.
+type HTTPSRegistryClient = internalp2p.HTTPSRegistryClient
+
+// NewHTTPSRegistryClient creates a new HTTPSRegistryClient instance.
+func NewHTTPSRegistryClient(opts HTTPSRegistryOptions) (*HTTPSRegistryClient, error) {
+	return internalp2p.NewHTTPSRegistryClient(opts)
+}
+
+// SignHTTPSRequest attaches Bearer authentication and Ed25519 signature headers to an HTTP request.
+var SignHTTPSRequest = internalp2p.SignHTTPSRequest
+
+// VerifyHTTPSRequestSignature validates the timestamp skew and Ed25519 signature on an HTTP request.
+var VerifyHTTPSRequestSignature = internalp2p.VerifyHTTPSRequestSignature
+
+// BuildCanonicalString constructs the canonical string signed for HTTPS discovery requests.
+var BuildCanonicalString = internalp2p.BuildCanonicalString
+
+

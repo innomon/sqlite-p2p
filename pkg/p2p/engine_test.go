@@ -2,11 +2,18 @@ package p2p_test
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
+	"time"
 
 	"sqlite-p2p/internal/store"
+	"sqlite-p2p/pkg/config"
 	"sqlite-p2p/pkg/p2p"
 
 	"go-pear/pkg/policy"
@@ -359,6 +366,228 @@ func TestEngine_CustomDefaultTableAndCDCPoller(t *testing.T) {
 	_ = noSwarmEng.Policy()
 	_ = noSwarmEng.DisconnectPeer([32]byte{})
 	_ = noSwarmEng.EvictDisallowed()
+}
+
+func TestEngine_HTTPSCrossLANDiscoveryAndReplication(t *testing.T) {
+	ctx := context.Background()
+
+	var regMu sync.Mutex
+	peersByTopic := make(map[string]map[string]p2p.HTTPSPeerRecord)
+	unannouncedPKs := make(map[string]bool)
+
+	regSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if r.Header.Get("Authorization") != "Bearer e2e-https-token" {
+			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+			return
+		}
+		if _, err := p2p.VerifyHTTPSRequestSignature(r, body, time.Now(), 5*time.Minute); err != nil {
+			http.Error(w, `{"error":"invalid signature"}`, http.StatusUnauthorized)
+			return
+		}
+
+		var topic [32]byte
+		copy(topic[:], "e2e-https-cross-lan-topic-123456")
+		topicHex := hex.EncodeToString(topic[:])
+
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/topics/"+topicHex+"/announce":
+			var req p2p.HTTPSAnnounceRequest
+			if err := json.Unmarshal(body, &req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			regMu.Lock()
+			if peersByTopic[topicHex] == nil {
+				peersByTopic[topicHex] = make(map[string]p2p.HTTPSPeerRecord)
+			}
+			peersByTopic[topicHex][req.PeerPK] = p2p.HTTPSPeerRecord{
+				PeerPK:    req.PeerPK,
+				SigningPK: req.SigningPK,
+				NodeID:    req.NodeID,
+				Endpoints: req.Endpoints,
+				UpdatedAt: time.Now().Unix(),
+			}
+			var peerList []p2p.HTTPSPeerRecord
+			for _, pr := range peersByTopic[topicHex] {
+				peerList = append(peerList, pr)
+			}
+			regMu.Unlock()
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(p2p.HTTPSAnnounceResponse{
+				Topic:  topicHex,
+				TTLSec: 60,
+				Peers:  peerList,
+			})
+		case r.Method == http.MethodDelete:
+			regMu.Lock()
+			peerPK := r.Header.Get(p2p.HeaderPeerPublicKey)
+			unannouncedPKs[peerPK] = true
+			if peersByTopic[topicHex] != nil {
+				delete(peersByTopic[topicHex], peerPK)
+			}
+			regMu.Unlock()
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer regSrv.Close()
+
+	var topic [32]byte
+	copy(topic[:], "e2e-https-cross-lan-topic-123456")
+
+	kpA, _ := secretstream.GenerateKeyPair()
+	kpB, _ := secretstream.GenerateKeyPair()
+
+	engA, err := p2p.OpenEngine(p2p.EngineOptions{
+		NodeID:            "node-A",
+		DBPath:            ":memory:",
+		SwarmTopic:        topic,
+		BeaconPort:        49811, // Separate LAN broadcast domain 1
+		CrossLANMode:      config.CrossLANHTTPS,
+		KeyPair:           kpA,
+		HTTPSPollInterval: 60 * time.Millisecond,
+		HTTPSAPI: &config.HTTPSAPIConfig{
+			URL:           regSrv.URL,
+			APIKey:        "e2e-https-token",
+			AdvertiseAddr: "127.0.0.1:0", // port will be normalized to Swarm listening port
+		},
+	})
+	if err != nil {
+		t.Fatalf("OpenEngine node-A failed: %v", err)
+	}
+	defer engA.Close()
+
+	engB, err := p2p.OpenEngine(p2p.EngineOptions{
+		NodeID:            "node-B",
+		DBPath:            ":memory:",
+		SwarmTopic:        topic,
+		BeaconPort:        49812, // Separate LAN broadcast domain 2
+		CrossLANMode:      config.CrossLANHTTPS,
+		KeyPair:           kpB,
+		HTTPSPollInterval: 60 * time.Millisecond,
+		HTTPSAPI: &config.HTTPSAPIConfig{
+			URL:           regSrv.URL,
+			APIKey:        "e2e-https-token",
+			AdvertiseAddr: "127.0.0.1:0",
+		},
+	})
+	if err != nil {
+		t.Fatalf("OpenEngine node-B failed: %v", err)
+	}
+	defer engB.Close()
+
+	if engA.CrossLANMode() != config.CrossLANHTTPS || engA.HTTPSRegistry() == nil {
+		t.Fatalf("expected CrossLANHTTPS and non-nil HTTPSRegistry on engA")
+	}
+
+	// Write a record on Node A and wait for HTTPS discovery + direct TCP replication to Node B
+	if err := engA.Put(ctx, "https:cust:1", json.RawMessage(`{"tier":"enterprise"}`), []byte("Replicated across firewall via HTTPS discovery")); err != nil {
+		t.Fatalf("engA.Put failed: %v", err)
+	}
+
+	deadline := time.Now().Add(4 * time.Second)
+	var replicated *store.Record
+	for time.Now().Before(deadline) {
+		rec, err := engB.Get(ctx, "https:cust:1")
+		if err == nil && rec != nil {
+			replicated = rec
+			break
+		}
+		_, _ = engA.ReplicationEngine().SyncPeers(ctx)
+		time.Sleep(50 * time.Millisecond)
+	}
+	if replicated == nil {
+		t.Fatal("timed out waiting for record to replicate from node-A to node-B via HTTPS discovery")
+	}
+	if string(replicated.Data) != "Replicated across firewall via HTTPS discovery" {
+		t.Errorf("unexpected replicated payload: %q", string(replicated.Data))
+	}
+
+	// Close node-B and verify it unannounces from the HTTPS registry
+	if err := engB.Close(); err != nil {
+		t.Fatalf("engB.Close failed: %v", err)
+	}
+	regMu.Lock()
+	wasUnannounced := unannouncedPKs[hex.EncodeToString(kpB.Public[:])]
+	regMu.Unlock()
+	if !wasUnannounced {
+		t.Error("expected node-B to unannounce from HTTPS registry on Close()")
+	}
+}
+
+func TestEngine_CrossLANModeValidationAndModes(t *testing.T) {
+	var topic [32]byte
+	copy(topic[:], "test-cross-lan-modes-topic-00001")
+
+	// Missing HTTPSAPI URL in CrossLANHTTPS mode should return error
+	_, err := p2p.OpenEngine(p2p.EngineOptions{
+		DBPath:       ":memory:",
+		SwarmTopic:   topic,
+		CrossLANMode: config.CrossLANHTTPS,
+	})
+	if err == nil {
+		t.Fatal("expected error when CrossLANMode is https without HTTPSAPI.URL")
+	}
+
+	// Invalid CrossLANMode should return error
+	_, err = p2p.OpenEngine(p2p.EngineOptions{
+		DBPath:       ":memory:",
+		SwarmTopic:   topic,
+		CrossLANMode: "invalid",
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid CrossLANMode")
+	}
+
+	// CrossLANNone mode should succeed and keep local swarm active
+	engNone, err := p2p.OpenEngine(p2p.EngineOptions{
+		DBPath:       ":memory:",
+		SwarmTopic:   topic,
+		CrossLANMode: config.CrossLANNone,
+	})
+	if err != nil {
+		t.Fatalf("OpenEngine with CrossLANNone failed: %v", err)
+	}
+	defer engNone.Close()
+	if engNone.CrossLANMode() != config.CrossLANNone {
+		t.Errorf("expected CrossLANNone, got %q", engNone.CrossLANMode())
+	}
+	if engNone.HTTPSRegistry() != nil {
+		t.Error("expected nil HTTPSRegistry in CrossLANNone mode")
+	}
+
+	// Test CrossLANBoth mode with explicit host-only AdvertiseAddr and NewHTTPSRegistryClient export
+	kp, _ := secretstream.GenerateKeyPair()
+	if _, err := p2p.NewHTTPSRegistryClient(p2p.HTTPSRegistryOptions{BaseURL: "https://example.com", KeyPair: kp}); err != nil {
+		t.Errorf("expected NewHTTPSRegistryClient export to succeed, got %v", err)
+	}
+	mockSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"topic":"","ttl_sec":60,"peers":[]}`))
+	}))
+	defer mockSrv.Close()
+
+	engBoth, err := p2p.OpenEngine(p2p.EngineOptions{
+		DBPath:       ":memory:",
+		SwarmTopic:   topic,
+		BeaconPort:   49815,
+		CrossLANMode: config.CrossLANBoth,
+		HTTPSAPI: &config.HTTPSAPIConfig{
+			URL:           mockSrv.URL,
+			AdvertiseAddr: "127.0.0.1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("OpenEngine with CrossLANBoth failed: %v", err)
+	}
+	defer engBoth.Close()
 }
 
 

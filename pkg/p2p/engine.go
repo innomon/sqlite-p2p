@@ -25,38 +25,61 @@ import (
 
 // EngineOptions configures the decentralized sqlite-p2p engine.
 type EngineOptions struct {
-	DBPath        string
-	DB            *sql.DB
-	DefaultTable  string
-	IncludeTables []string
-	ExcludeTables []string
-	CDCInterval   time.Duration
-	EnableWAL     bool
-	EnableCrypto  bool
-	SwarmTopic    [32]byte
-	SwarmPort     int
-	Bootstrap     []string
-	KeyPair       *secretstream.KeyPair
-	Policy        *policy.ReplicationPolicy
-	KeyRegistry   *crypto.KeyRegistry
-	Logger        *slog.Logger
+	NodeID            string
+	DBPath            string
+	DB                *sql.DB
+	DefaultTable      string
+	IncludeTables     []string
+	ExcludeTables     []string
+	CDCInterval       time.Duration
+	EnableWAL         bool
+	EnableCrypto      bool
+	SwarmTopic        [32]byte
+	SwarmPort         int
+	BeaconPort        int
+	CrossLANMode      config.CrossLANMode
+	Bootstrap         []string
+	HTTPSAPI          *config.HTTPSAPIConfig
+	HTTPSPollInterval time.Duration
+	KeyPair           *secretstream.KeyPair
+	Policy            *policy.ReplicationPolicy
+	KeyRegistry       *crypto.KeyRegistry
+	Logger            *slog.Logger
+}
+
+func resolveAdvertiseEndpoint(advertiseAddr, fallbackDHTAddr string, actualPort int) string {
+	addr := strings.TrimSpace(advertiseAddr)
+	if addr == "" {
+		return fallbackDHTAddr
+	}
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return internalp2p.NormalizeDHTAddr(net.JoinHostPort(addr, strconv.Itoa(actualPort)))
+	}
+	if portStr == "" || portStr == "0" {
+		return internalp2p.NormalizeDHTAddr(net.JoinHostPort(host, strconv.Itoa(actualPort)))
+	}
+	return internalp2p.NormalizeDHTAddr(addr)
 }
 
 // Engine encapsulates the pure Go SQLite storage, cryptographic security,
 // and Pear/Holepunch P2P replication mesh.
 type Engine struct {
-	db          *sql.DB
-	ownsDB      bool
-	repo        *store.Repository
-	tracker     *store.ChangesetTracker
-	replEngine  *internalp2p.ReplicationEngine
-	feed        *internalp2p.ChangesetFeed
-	replicator  *internalp2p.Replicator
-	swarm       *internalp2p.SwarmManager
-	policy      *policy.ReplicationPolicy
-	keys        *crypto.KeyRegistry
-	logger      *slog.Logger
-	mu          sync.RWMutex
+	db            *sql.DB
+	ownsDB        bool
+	repo          *store.Repository
+	tracker       *store.ChangesetTracker
+	replEngine    *internalp2p.ReplicationEngine
+	feed          *internalp2p.ChangesetFeed
+	replicator    *internalp2p.Replicator
+	swarm         *internalp2p.SwarmManager
+	httpsRegistry *internalp2p.HTTPSRegistryClient
+	crossLANMode  config.CrossLANMode
+	policy        *policy.ReplicationPolicy
+	keys          *crypto.KeyRegistry
+	beaconCancel  context.CancelFunc
+	logger        *slog.Logger
+	mu            sync.RWMutex
 }
 
 // OpenEngine initializes and returns an Engine instance.
@@ -97,27 +120,49 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 
 	tracker := store.NewChangesetTracker(repo)
 
+	modeCfg := &config.NodeConfig{
+		CrossLANMode: opts.CrossLANMode,
+		HTTPSAPI:     opts.HTTPSAPI,
+	}
+	if err := modeCfg.Validate(); err != nil {
+		if ownsDB {
+			_ = db.Close()
+		}
+		return nil, err
+	}
+	crossMode := modeCfg.EffectiveCrossLANMode()
+
 	engine := &Engine{
-		db:      db,
-		ownsDB:  ownsDB,
-		repo:    repo,
-		tracker: tracker,
-		keys:    keys,
-		logger:  opts.Logger,
-		policy:  opts.Policy,
+		db:           db,
+		ownsDB:       ownsDB,
+		repo:         repo,
+		tracker:      tracker,
+		keys:         keys,
+		logger:       opts.Logger,
+		policy:       opts.Policy,
+		crossLANMode: crossMode,
 	}
 
 	// Initialize P2P replication if a cluster topic is specified
 	if opts.SwarmTopic != [32]byte{} {
 		topicHex := hex.EncodeToString(opts.SwarmTopic[:])
+		beaconPort := opts.BeaconPort
+		if beaconPort <= 0 {
+			beaconPort = internalp2p.DefaultBeaconPort
+		}
 
-		// Auto-discover existing local bootstrap if none provided
-		if len(opts.Bootstrap) == 0 {
+		var effectiveBootstrap []string
+		if crossMode == config.CrossLANDHT || crossMode == config.CrossLANBoth {
+			effectiveBootstrap = append(effectiveBootstrap, opts.Bootstrap...)
+		}
+
+		// Intra-LAN discovery is ALWAYS enabled: auto-discover existing local LAN peer via UDP beacon if no bootstrap set
+		if len(effectiveBootstrap) == 0 {
 			discCtx, discCancel := context.WithTimeout(context.Background(), 750*time.Millisecond)
-			lanPeer, err := internalp2p.DiscoverLANBootstrap(discCtx, "sqlite-p2p", topicHex, internalp2p.DefaultBeaconPort, 600*time.Millisecond)
+			lanPeer, err := internalp2p.DiscoverLANBootstrap(discCtx, "sqlite-p2p", topicHex, beaconPort, 600*time.Millisecond)
 			discCancel()
 			if err == nil && lanPeer != "" {
-				opts.Bootstrap = append(opts.Bootstrap, lanPeer)
+				effectiveBootstrap = append(effectiveBootstrap, lanPeer)
 			}
 		}
 
@@ -154,11 +199,12 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 
 		swarmMgr, err := internalp2p.NewSwarmManager(internalp2p.SwarmManagerOptions{
 			Port:      opts.SwarmPort,
-			Bootstrap: opts.Bootstrap,
+			Bootstrap: effectiveBootstrap,
 			KeyPair:   opts.KeyPair,
 			Policy:    opts.Policy,
 		})
 		if err != nil {
+			replEngine.StopCDCPoller()
 			if ownsDB {
 				_ = db.Close()
 			}
@@ -173,20 +219,61 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 		})
 
 		if err := swarmMgr.Join(opts.SwarmTopic); err != nil {
+			replEngine.StopCDCPoller()
+			_ = swarmMgr.Close()
 			if ownsDB {
 				_ = db.Close()
 			}
 			return nil, fmt.Errorf("failed to join swarm topic: %w", err)
 		}
 
-		// Start background LAN discovery beacon broadcaster
+		// Intra-LAN discovery is ALWAYS enabled: start background LAN discovery beacon broadcaster
 		routableDHT := internalp2p.NormalizeDHTAddr(swarmMgr.DHTAddr())
+		beaconCtx, beaconCancel := context.WithCancel(context.Background())
+		engine.beaconCancel = beaconCancel
 		beaconMsg := internalp2p.BeaconMessage{
 			Cluster: "sqlite-p2p",
 			Topic:   topicHex,
 			DHTAddr: routableDHT,
+			NodeID:  opts.NodeID,
 		}
-		_ = internalp2p.StartBeaconBroadcaster(context.Background(), beaconMsg, internalp2p.DefaultBeaconPort, 2500*time.Millisecond)
+		_ = internalp2p.StartBeaconBroadcaster(beaconCtx, beaconMsg, beaconPort, 2500*time.Millisecond)
+
+		// Initialize Cross-LAN HTTPS Registry Client when CrossLANMode is "https" or "both"
+		if crossMode == config.CrossLANHTTPS || crossMode == config.CrossLANBoth {
+			pollInterval := time.Duration(opts.HTTPSAPI.EffectivePollIntervalSec()) * time.Second
+			if opts.HTTPSPollInterval > 0 {
+				pollInterval = opts.HTTPSPollInterval
+			}
+			timeout := time.Duration(opts.HTTPSAPI.EffectiveTimeoutSec()) * time.Second
+			advAddr := resolveAdvertiseEndpoint(opts.HTTPSAPI.AdvertiseAddr, routableDHT, swarmMgr.Port())
+
+			httpsClient, err := internalp2p.NewHTTPSRegistryClient(internalp2p.HTTPSRegistryOptions{
+				BaseURL:       opts.HTTPSAPI.URL,
+				APIKey:        opts.HTTPSAPI.APIKey,
+				NodeID:        opts.NodeID,
+				KeyPair:       swarmMgr.KeyPair(),
+				Topic:         opts.SwarmTopic,
+				Endpoints:     []string{advAddr},
+				PollInterval:  pollInterval,
+				Timeout:       timeout,
+				TLSSkipVerify: opts.HTTPSAPI.TLSSkipVerify,
+				Policy:        engine.Policy,
+				DialPeer:      swarmMgr.ConnectDirect,
+				Logger:        opts.Logger,
+			})
+			if err != nil {
+				beaconCancel()
+				replEngine.StopCDCPoller()
+				_ = swarmMgr.Close()
+				if ownsDB {
+					_ = db.Close()
+				}
+				return nil, fmt.Errorf("failed to initialize https registry client: %w", err)
+			}
+			httpsClient.Start()
+			engine.httpsRegistry = httpsClient
+		}
 
 		engine.feed = feed
 		engine.replicator = replicator
@@ -212,6 +299,10 @@ func OpenEngineFromNodeConfig(cfg *config.NodeConfig) (*Engine, error) {
 		return nil, errors.New("node config cannot be nil")
 	}
 
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid node config: %w", err)
+	}
+
 	pol, err := cfg.BuildPolicy()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build replication policy: %w", err)
@@ -227,6 +318,7 @@ func OpenEngineFromNodeConfig(cfg *config.NodeConfig) (*Engine, error) {
 	bootstrap = append(bootstrap, cfg.PeerAddrs...)
 
 	opts := EngineOptions{
+		NodeID:        cfg.NodeID,
 		DBPath:        cfg.DBPath,
 		DefaultTable:  cfg.DefaultTable,
 		IncludeTables: cfg.IncludeTables,
@@ -235,7 +327,9 @@ func OpenEngineFromNodeConfig(cfg *config.NodeConfig) (*Engine, error) {
 		EnableCrypto:  cfg.EnableCrypto,
 		SwarmTopic:    topic,
 		SwarmPort:     cfg.SwarmPort,
+		CrossLANMode:  cfg.EffectiveCrossLANMode(),
 		Bootstrap:     bootstrap,
+		HTTPSAPI:      cfg.HTTPSAPI,
 		Policy:        pol,
 	}
 
@@ -303,6 +397,16 @@ func (e *Engine) ChangesetFeed() *internalp2p.ChangesetFeed {
 // Swarm returns the internal p2p.SwarmManager instance, if initialized.
 func (e *Engine) Swarm() *internalp2p.SwarmManager {
 	return e.swarm
+}
+
+// HTTPSRegistry returns the active HTTPSRegistryClient instance, if initialized.
+func (e *Engine) HTTPSRegistry() *internalp2p.HTTPSRegistryClient {
+	return e.httpsRegistry
+}
+
+// CrossLANMode returns the effective cross-LAN discovery mode configured for the Engine.
+func (e *Engine) CrossLANMode() config.CrossLANMode {
+	return e.crossLANMode
 }
 
 // Policy returns the active replication gating policy.
@@ -396,22 +500,45 @@ func (e *Engine) DrainCDCOutbox(ctx context.Context) (int, error) {
 // Close closes the engine and releases underlying database and network resources.
 func (e *Engine) Close() error {
 	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if e.replEngine != nil {
-		e.replEngine.StopCDCPoller()
-	}
-
-	if e.swarm != nil {
-		_ = e.swarm.Close()
-	}
-
-	if e.replicator != nil {
-		e.replicator.Close()
-	}
-
+	beaconCancel := e.beaconCancel
+	e.beaconCancel = nil
+	httpsReg := e.httpsRegistry
+	e.httpsRegistry = nil
+	replEngine := e.replEngine
+	e.replEngine = nil
+	swarm := e.swarm
+	e.swarm = nil
+	replicator := e.replicator
+	e.replicator = nil
+	var dbToClose *sql.DB
 	if e.ownsDB && e.db != nil {
-		return e.db.Close()
+		dbToClose = e.db
+		e.db = nil
+	}
+	e.mu.Unlock()
+
+	if beaconCancel != nil {
+		beaconCancel()
+	}
+
+	if httpsReg != nil {
+		_ = httpsReg.Close()
+	}
+
+	if replEngine != nil {
+		replEngine.StopCDCPoller()
+	}
+
+	if swarm != nil {
+		_ = swarm.Close()
+	}
+
+	if replicator != nil {
+		_ = replicator.Close()
+	}
+
+	if dbToClose != nil {
+		return dbToClose.Close()
 	}
 	return nil
 }
