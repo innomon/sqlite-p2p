@@ -1,13 +1,13 @@
 # Implementation Plan: Configurable Cross-LAN Discovery via DHT Swarm & Secure HTTPS Registry API
 
 ## Phase 1: Configuration & Cross-LAN Mode Modeling
-- [ ] Task: Extend `pkg/config` with `CrossLANMode` and `HTTPSAPIConfig`
-    - [ ] Write failing unit tests in `pkg/config/config_test.go` for parsing, defaulting, and validating `cross_lan_mode` (`"dht"`, `"https"`, `"both"`, `"none"`) and `https_api` (`url`, `api_key`, `poll_interval_sec`, `timeout_sec`, `advertise_addr`, `tls_skip_verify`) in `NodeConfig`.
-    - [ ] Implement `CrossLANMode` constants, `HTTPSAPIConfig` struct, helper methods (`EffectiveCrossLANMode()`, `Validate()`), and fields in `pkg/config/config.go`.
-    - [ ] Run tests and verify >80% coverage for `pkg/config`.
-- [ ] Task: Update `conductor/tech-stack.md` & `conductor/product.md`
-    - [ ] Document the Configurable Cross-LAN Discovery architecture (always-on LAN UDP beacon + configurable DHT / Secure HTTPS Registry API) in `conductor/tech-stack.md` and `conductor/product.md`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Configuration & Cross-LAN Mode Modeling' (Protocol in workflow.md)
+- [x] Task: Extend `pkg/config` with `CrossLANMode` and `HTTPSAPIConfig` 360cecd
+    - [x] Write failing unit tests in `pkg/config/config_test.go` for parsing, defaulting, and validating `cross_lan_mode` (`"dht"`, `"https"`, `"both"`, `"none"`) and `https_api` (`url`, `api_key`, `poll_interval_sec`, `timeout_sec`, `advertise_addr`, `tls_skip_verify`) in `NodeConfig`.
+    - [x] Implement `CrossLANMode` constants, `HTTPSAPIConfig` struct, helper methods (`EffectiveCrossLANMode()`, `Validate()`), and fields in `pkg/config/config.go`.
+    - [x] Run tests and verify >80% coverage for `pkg/config`.
+- [x] Task: Update `conductor/tech-stack.md` & `conductor/product.md` a531089
+    - [x] Document the Configurable Cross-LAN Discovery architecture (always-on LAN UDP beacon + configurable DHT / Secure HTTPS Registry API) in `conductor/tech-stack.md` and `conductor/product.md`.
+- [~] Task: Conductor - User Manual Verification 'Phase 1: Configuration & Cross-LAN Mode Modeling' (Protocol in workflow.md)
 
 ## Phase 2: Secure HTTPS Discovery Client & Cryptographic Request Signing (`internal/p2p`)
 - [ ] Task: Implement Ed25519 Request Signing and Canonical Verification Helpers
