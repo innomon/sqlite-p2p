@@ -1,0 +1,8 @@
+{
+  "track_id": "https_cross_lan_discovery_20261121",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-11-21T17:31:20Z",
+  "updated_at": "2026-11-21T17:31:20Z",
+  "description": "Configurable Cross-LAN Discovery via DHT Swarm & Secure HTTPS Registry API"
+}

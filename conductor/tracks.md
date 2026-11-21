@@ -6,7 +6,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Active Tracks
 
-*(No active tracks)*
+- [ ] **Track: Configurable Cross-LAN Discovery via DHT Swarm & Secure HTTPS Registry API**
+*Link: [./tracks/https_cross_lan_discovery_20261121/](./tracks/https_cross_lan_discovery_20261121/)*
 
 ---
 
