@@ -165,22 +165,25 @@ func CosineSimilarityBytes(b1, b2 []byte) (float64, error) {
 		return 0, fmt.Errorf("dimension mismatch: %d vs %d", len(b1)/4, len(b2)/4)
 	}
 
-	var dot0, dot1, dot2, dot3 float64
-	var normU0, normU1, normU2, normU3 float64
-	var normV0, normV1, normV2, normV3 float64
+	var dot0, dot1, dot2, dot3 float32
+	var normU0, normU1, normU2, normU3 float32
+	var normV0, normV1, normV2, normV3 float32
 
 	n := len(b1)
 	i := 0
 	for ; i <= n-16; i += 16 {
-		u0 := float64(math.Float32frombits(binary.LittleEndian.Uint32(b1[i:])))
-		u1 := float64(math.Float32frombits(binary.LittleEndian.Uint32(b1[i+4:])))
-		u2 := float64(math.Float32frombits(binary.LittleEndian.Uint32(b1[i+8:])))
-		u3 := float64(math.Float32frombits(binary.LittleEndian.Uint32(b1[i+12:])))
+		b1s := b1[i : i+16 : i+16]
+		b2s := b2[i : i+16 : i+16]
 
-		v0 := float64(math.Float32frombits(binary.LittleEndian.Uint32(b2[i:])))
-		v1 := float64(math.Float32frombits(binary.LittleEndian.Uint32(b2[i+4:])))
-		v2 := float64(math.Float32frombits(binary.LittleEndian.Uint32(b2[i+8:])))
-		v3 := float64(math.Float32frombits(binary.LittleEndian.Uint32(b2[i+12:])))
+		u0 := math.Float32frombits(binary.LittleEndian.Uint32(b1s[0:4]))
+		u1 := math.Float32frombits(binary.LittleEndian.Uint32(b1s[4:8]))
+		u2 := math.Float32frombits(binary.LittleEndian.Uint32(b1s[8:12]))
+		u3 := math.Float32frombits(binary.LittleEndian.Uint32(b1s[12:16]))
+
+		v0 := math.Float32frombits(binary.LittleEndian.Uint32(b2s[0:4]))
+		v1 := math.Float32frombits(binary.LittleEndian.Uint32(b2s[4:8]))
+		v2 := math.Float32frombits(binary.LittleEndian.Uint32(b2s[8:12]))
+		v3 := math.Float32frombits(binary.LittleEndian.Uint32(b2s[12:16]))
 
 		dot0 += u0 * v0
 		dot1 += u1 * v1
@@ -198,13 +201,13 @@ func CosineSimilarityBytes(b1, b2 []byte) (float64, error) {
 		normV3 += v3 * v3
 	}
 
-	dot := (dot0 + dot1) + (dot2 + dot3)
-	normU := (normU0 + normU1) + (normU2 + normU3)
-	normV := (normV0 + normV1) + (normV2 + normV3)
+	dot := float64(dot0+dot1) + float64(dot2+dot3)
+	normU := float64(normU0+normU1) + float64(normU2+normU3)
+	normV := float64(normV0+normV1) + float64(normV2+normV3)
 
 	for ; i < n; i += 4 {
-		ui := float64(math.Float32frombits(binary.LittleEndian.Uint32(b1[i:])))
-		vi := float64(math.Float32frombits(binary.LittleEndian.Uint32(b2[i:])))
+		ui := float64(math.Float32frombits(binary.LittleEndian.Uint32(b1[i : i+4])))
+		vi := float64(math.Float32frombits(binary.LittleEndian.Uint32(b2[i : i+4])))
 		dot += ui * vi
 		normU += ui * ui
 		normV += vi * vi
