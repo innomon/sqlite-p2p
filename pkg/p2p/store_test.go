@@ -80,5 +80,20 @@ func TestStoreExports(t *testing.T) {
 		t.Fatalf("ApplyChangeset failed: %v", err)
 	}
 	_ = p2p.NormalizeDHTAddr("0.0.0.0:4000")
+
+	// Verify vector helper exports in pkg/p2p
+	p2p.RegisterVectorExtension()
+	b := p2p.Float32ToBytes([]float32{1.0, 0.0, 0.0})
+	floats, err := p2p.BytesToFloat32(b)
+	if err != nil || len(floats) != 3 {
+		t.Fatalf("BytesToFloat32 failed: %v", err)
+	}
+	if err := repo.PutVector(ctx, "vec:k1", []byte(`{"v":1}`), floats); err != nil {
+		t.Fatalf("repo.PutVector failed: %v", err)
+	}
+	matches, err := repo.SearchSimilar(ctx, []float32{1.0, 0.0, 0.0}, 1, 0.9)
+	if err != nil || len(matches) != 1 || matches[0].Key != "vec:k1" {
+		t.Fatalf("repo.SearchSimilar failed: matches=%+v err=%v", matches, err)
+	}
 }
 

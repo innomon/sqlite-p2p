@@ -8,6 +8,7 @@ import (
 	"sqlite-p2p/internal/crypto"
 	internalp2p "sqlite-p2p/internal/p2p"
 	"sqlite-p2p/internal/store"
+	"sqlite-p2p/pkg/vect"
 )
 
 // ErrNotFound indicates a requested key does not exist.
@@ -173,5 +174,30 @@ var VerifyHTTPSRequestSignature = internalp2p.VerifyHTTPSRequestSignature
 
 // BuildCanonicalString constructs the canonical string signed for HTTPS discovery requests.
 var BuildCanonicalString = internalp2p.BuildCanonicalString
+
+// VectorMatch aliases a K-NN vector similarity search result.
+type VectorMatch = store.VectorMatch
+
+// RegisterVectorExtension idempotently registers the SQLite vector search scalar functions.
+var RegisterVectorExtension = vect.RegisterExtension
+
+// Float32ToBytes encodes a []float32 slice into a Little-Endian IEEE 754 byte slice.
+var Float32ToBytes = vect.Float32ToBytes
+
+// BytesToFloat32 decodes a Little-Endian IEEE 754 byte slice into []float32.
+var BytesToFloat32 = vect.BytesToFloat32
+
+// PackF32JSON parses a JSON float32 array string into a Little-Endian byte slice.
+var PackF32JSON = vect.PackF32JSON
+
+// CosineSimilarity computes the cosine similarity between two []float32 vectors.
+var CosineSimilarity = vect.CosineSimilarity
+
+// CosineDistance computes 1.0 - CosineSimilarity(u, v).
+var CosineDistance = vect.CosineDistance
+
+// L2Distance computes the Euclidean distance between two []float32 vectors.
+var L2Distance = vect.L2Distance
+
 
 

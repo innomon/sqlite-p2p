@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"sqlite-p2p/pkg/vect"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -19,6 +21,8 @@ CREATE TABLE IF NOT EXISTS crm_store (
 
 // OpenDB opens a pure Go SQLite database, applies required PRAGMAs, and creates the crm_store table.
 func OpenDB(dbPath string, enableWAL bool) (*sql.DB, error) {
+	vect.RegisterExtension()
+
 	if dbPath != ":memory:" {
 		dir := filepath.Dir(dbPath)
 		if dir != "." && dir != "" {
