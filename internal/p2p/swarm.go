@@ -112,6 +112,14 @@ func (sm *SwarmManager) Swarm() *hyperswarm.Swarm {
 	return sm.swarm
 }
 
+// KeyPair returns the cryptographic KeyPair used by the underlying Hyperswarm instance.
+func (sm *SwarmManager) KeyPair() *secretstream.KeyPair {
+	if sm.swarm != nil {
+		return sm.swarm.KeyPair
+	}
+	return nil
+}
+
 // Policy returns the active replication gating policy.
 func (sm *SwarmManager) Policy() *policy.ReplicationPolicy {
 	sm.mu.RLock()
