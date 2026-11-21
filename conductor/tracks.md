@@ -6,14 +6,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Active Tracks
 
-- [x] **Track: Pure Go SQLite Vector Search Extension (`pkg/vect`) with K-NN & P2P CDC Replication**
-*Link: [./tracks/sqlite_vector_search_20261121/](./tracks/sqlite_vector_search_20261121/)*
+*(No active tracks)*
 
 ---
 
 ## Archived Tracks
 All completed tracks have been archived to [conductor/archive/](./archive/).
 
+- [x] [Pure Go SQLite Vector Search Extension (`pkg/vect`) with K-NN & P2P CDC Replication](./archive/sqlite_vector_search_20261121/index.md) (Status: Complete)
 - [x] [Configurable Cross-LAN Discovery via DHT Swarm & Secure HTTPS Registry API](./archive/https_cross_lan_discovery_20261121/index.md) (Status: Complete)
 - [x] [Multi-Table Schema Auto-Discovery, Trigger-Based CDC Outbox & Universal Hypercore Swarm Replication](./archive/multi_table_cdc_replication_20261120/index.md) (Status: Complete)
 - [x] [Arbitrary SQL Execution CLI Command (`sql` / `/sql`)](./archive/sql_cli_20261025/index.md) (Status: Complete)
