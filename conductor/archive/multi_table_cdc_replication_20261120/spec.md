@@ -57,8 +57,8 @@ Upgrade `sqlite-p2p` from a single-table (`crm_store`), API-only (`engine.Put` /
 - **Test Coverage**: >80% unit and integration test coverage across all modified packages.
 
 ## 4. Acceptance Criteria
-- [ ] A database with an existing `ecom_store` table (like `kheti-badi-ecom`) opened by `sqlite-p2p` automatically seeds `ecom_store` schema and rows into its Hypercore feed and replicates them to a second `sqlite-p2p` peer.
-- [ ] Direct SQL mutations (`INSERT`, `UPDATE`, `DELETE`) executed against `ecom_store` or any custom relational table (`CREATE TABLE orders (id TEXT PRIMARY KEY, status TEXT, total REAL)`) via `*sql.DB` or the `sql` CLI command are captured by CDC triggers, appended to Hypercore, and replicated to connected peers.
-- [ ] Applying remote changesets sets `applying_remote = 1` and does not cause infinite replication loops in `_p2p_cdc_outbox`.
-- [ ] LWW conflict resolution isolates timestamps by `(Table, Key)` so keys shared across multiple tables resolve independently.
-- [ ] Legacy changesets with empty `Table` field default to `"crm_store"` and pass all existing tests.
+- [x] A database with an existing `ecom_store` table (like `kheti-badi-ecom`) opened by `sqlite-p2p` automatically seeds `ecom_store` schema and rows into its Hypercore feed and replicates them to a second `sqlite-p2p` peer.
+- [x] Direct SQL mutations (`INSERT`, `UPDATE`, `DELETE`) executed against `ecom_store` or any custom relational table (`CREATE TABLE orders (id TEXT PRIMARY KEY, status TEXT, total REAL)`) via `*sql.DB` or the `sql` CLI command are captured by CDC triggers, appended to Hypercore, and replicated to connected peers.
+- [x] Applying remote changesets sets `applying_remote = 1` and does not cause infinite replication loops in `_p2p_cdc_outbox`.
+- [x] LWW conflict resolution isolates timestamps by `(Table, Key)` so keys shared across multiple tables resolve independently.
+- [x] Legacy changesets with empty `Table` field default to `"crm_store"` and pass all existing tests.
