@@ -9,9 +9,10 @@
 - **Primary Embedded Store**: SQLite compiled in Pure Go (`modernc.org/sqlite`) running in WAL mode (`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON;`).
 - **Schema & Query Model**: Universal multi-table storage supporting both fast-path KV tables (`crm_store`, `ecom_store` with `key TEXT PRIMARY KEY, metadata TEXT CHECK(json_valid(metadata)), data BLOB WITHOUT ROWID`) and arbitrary relational SQLite tables (single PK, composite PK, or `rowid`).
 - **Change Data Capture**: Pure Go SQLite trigger-based CDC outbox (`_p2p_cdc_outbox`) and transactional remote-apply guard (`_p2p_sync_state`), paired with schema auto-discovery (`sqlite_master` + `PRAGMA table_info`) and table-scoped LWW conflict resolution.
+- **Vector Search Extension (`pkg/vect`)**: Pure Go deterministic SQLite scalar extension registered on `modernc.org/sqlite` providing `vec_cosine_similarity`, `vec_cosine_distance`, `vec_l2_distance`, `vec_length`, and `vec_pack_f32` over packed Little-Endian `float32` BLOBs alongside `Repository.PutVector`, `GetVector`, and `SearchSimilar` K-NN helpers.
 
 ## 3. Decentralized P2P Protocol Stack (Pear / Holepunch)
-- **Local Pure Go Pear Engine**: Referenced from `/home/innomon/B204-zone/owly-sewa/go-pear`.
+- **Local Pure Go Pear Engine**: Referenced from `$PROJECT_ROOT/go-pear`.
   - **Hypercore**: Append-only cryptographic data feeds with Merkle tree verification.
   - **Hyperswarm & HyperDHT**: Distributed peer discovery, holepunching, and P2P connection multiplexing over 32-byte swarm topics.
   - **Configurable Cross-LAN Discovery & Secure HTTPS Swarm Registry**: Always-on intra-LAN UDP broadcast beacon discovery (`DefaultBeaconPort = 49736`) paired with configurable cross-LAN discovery (`cross_lan_mode`: `dht`, `https`, `both`, `none`) supporting both HyperDHT seed nodes (`cmd/dht-seed`) and a stateless Secure HTTPS Peer Discovery Registry API authenticated with Bearer tokens and Ed25519 request signatures (`X-Peer-Public-Key`, `X-Peer-Timestamp`, `X-Peer-Signature`).
