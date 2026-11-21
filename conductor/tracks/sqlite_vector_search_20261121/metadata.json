@@ -1,8 +1,8 @@
 {
   "track_id": "sqlite_vector_search_20261121",
   "type": "feature",
-  "status": "new",
+  "status": "in_progress",
   "created_at": "2026-11-21T20:10:07+05:30",
-  "updated_at": "2026-11-21T20:10:07+05:30",
+  "updated_at": "2026-11-21T20:11:35+05:30",
   "description": "Pure Go SQLite Vector Search Extension (pkg/vect) with K-NN & P2P CDC Replication"
 }

@@ -6,7 +6,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## Active Tracks
 
-- [ ] **Track: Pure Go SQLite Vector Search Extension (`pkg/vect`) with K-NN & P2P CDC Replication**
+- [~] **Track: Pure Go SQLite Vector Search Extension (`pkg/vect`) with K-NN & P2P CDC Replication**
 *Link: [./tracks/sqlite_vector_search_20261121/](./tracks/sqlite_vector_search_20261121/)*
 
 ---

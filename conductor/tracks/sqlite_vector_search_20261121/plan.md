@@ -1,11 +1,11 @@
 # Implementation Plan: Pure Go SQLite Vector Search Extension (`pkg/vect`)
 
 ## Phase 1: Core Vector Math & Binary Serialization (`pkg/vect`)
-- [ ] Task: Implement binary float32 serialization and vector math algorithms in `pkg/vect`
-    - [ ] Write failing unit tests in `pkg/vect/vect_test.go` covering `Float32ToBytes`, `BytesToFloat32`, `VectorLength`, `PackF32JSON`, `CosineSimilarity`, `CosineDistance`, `L2Distance`, and direct zero-allocation byte helpers (`CosineSimilarityBytes`, `CosineDistanceBytes`, `L2DistanceBytes`), including edge cases (non-multiple-of-4 byte lengths, dimension mismatches, zero-magnitude vectors, negative/orthogonal/identical vectors, malformed JSON, and $\epsilon < 10^{-6}$ precision checks).
-    - [ ] Implement `pkg/vect/vect.go` with Little-Endian IEEE 754 `float32` packing/unpacking, JSON float32 packing, and loop-unrolled zero-allocation byte-slice vector math routines.
-    - [ ] Run unit tests and verify >80% coverage for `pkg/vect/vect.go`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Core Vector Math & Binary Serialization (`pkg/vect`)' (Protocol in workflow.md)
+- [x] Task: Implement binary float32 serialization and vector math algorithms in `pkg/vect` 082958c
+    - [x] Write failing unit tests in `pkg/vect/vect_test.go` covering `Float32ToBytes`, `BytesToFloat32`, `VectorLength`, `PackF32JSON`, `CosineSimilarity`, `CosineDistance`, `L2Distance`, and direct zero-allocation byte helpers (`CosineSimilarityBytes`, `CosineDistanceBytes`, `L2DistanceBytes`), including edge cases (non-multiple-of-4 byte lengths, dimension mismatches, zero-magnitude vectors, negative/orthogonal/identical vectors, malformed JSON, and $\epsilon < 10^{-6}$ precision checks).
+    - [x] Implement `pkg/vect/vect.go` with Little-Endian IEEE 754 `float32` packing/unpacking, JSON float32 packing, and loop-unrolled zero-allocation byte-slice vector math routines.
+    - [x] Run unit tests and verify >80% coverage for `pkg/vect/vect.go`.
+- [~] Task: Conductor - User Manual Verification 'Phase 1: Core Vector Math & Binary Serialization (`pkg/vect`)' (Protocol in workflow.md)
 
 ## Phase 2: SQLite Scalar Function Registration & Performance Benchmark (`pkg/vect`)
 - [ ] Task: Implement `modernc.org/sqlite` deterministic scalar function registration and K-NN benchmarks
