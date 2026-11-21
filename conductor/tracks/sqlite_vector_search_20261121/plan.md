@@ -1,15 +1,15 @@
 # Implementation Plan: Pure Go SQLite Vector Search Extension (`pkg/vect`)
 
-## Phase 1: Core Vector Math & Binary Serialization (`pkg/vect`)
+## Phase 1: Core Vector Math & Binary Serialization (`pkg/vect`) [checkpoint: 804064b]
 - [x] Task: Implement binary float32 serialization and vector math algorithms in `pkg/vect` 082958c
     - [x] Write failing unit tests in `pkg/vect/vect_test.go` covering `Float32ToBytes`, `BytesToFloat32`, `VectorLength`, `PackF32JSON`, `CosineSimilarity`, `CosineDistance`, `L2Distance`, and direct zero-allocation byte helpers (`CosineSimilarityBytes`, `CosineDistanceBytes`, `L2DistanceBytes`), including edge cases (non-multiple-of-4 byte lengths, dimension mismatches, zero-magnitude vectors, negative/orthogonal/identical vectors, malformed JSON, and $\epsilon < 10^{-6}$ precision checks).
     - [x] Implement `pkg/vect/vect.go` with Little-Endian IEEE 754 `float32` packing/unpacking, JSON float32 packing, and loop-unrolled zero-allocation byte-slice vector math routines.
     - [x] Run unit tests and verify >80% coverage for `pkg/vect/vect.go`.
-- [~] Task: Conductor - User Manual Verification 'Phase 1: Core Vector Math & Binary Serialization (`pkg/vect`)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Core Vector Math & Binary Serialization (`pkg/vect`)' (Protocol in workflow.md) 804064b
 
 ## Phase 2: SQLite Scalar Function Registration & Performance Benchmark (`pkg/vect`)
-- [ ] Task: Implement `modernc.org/sqlite` deterministic scalar function registration and K-NN benchmarks
-    - [ ] Write failing SQL integration and benchmark tests in `pkg/vect/register_test.go` covering `vec_cosine_similarity`, `vec_cosine_distance`, `vec_l2_distance`, `vec_length`, and `vec_pack_f32` via `database/sql` queries (including `NULL` propagation, SQLite error reporting on corrupt blobs / dimension mismatches, Top-K query ordering, threshold filtering, and the 10,000-vector x 768-dimension <15ms linear scan benchmark).
+- [~] Task: Implement `modernc.org/sqlite` deterministic scalar function registration and K-NN benchmarks
+    - [~] Write failing SQL integration and benchmark tests in `pkg/vect/register_test.go` covering `vec_cosine_similarity`, `vec_cosine_distance`, `vec_l2_distance`, `vec_length`, and `vec_pack_f32` via `database/sql` queries (including `NULL` propagation, SQLite error reporting on corrupt blobs / dimension mismatches, Top-K query ordering, threshold filtering, and the 10,000-vector x 768-dimension <15ms linear scan benchmark).
     - [ ] Implement `pkg/vect/register.go` with idempotent `RegisterExtension()` (`sync.Once` + `init()`) registering all 5 deterministic scalar functions on `modernc.org/sqlite`.
     - [ ] Run tests and benchmarks (`go test -v -bench=. ./pkg/vect/...`) to verify all scalar SQL tests pass and the 10k x 768d scan meets the <15ms target.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: SQLite Scalar Function Registration & Performance Benchmark (`pkg/vect`)' (Protocol in workflow.md)
