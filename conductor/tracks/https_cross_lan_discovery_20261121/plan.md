@@ -20,15 +20,15 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Secure HTTPS Discovery Client & Cryptographic Request Signing (`internal/p2p`)' (Protocol in workflow.md) 7e295e2
 
 ## Phase 3: Engine Integration & End-to-End Cross-LAN Replication (`pkg/p2p`)
-- [~] Task: Integrate `CrossLANMode` and `HTTPSRegistryClient` into `pkg/p2p.Engine`
-    - [ ] Write failing unit and integration tests in `pkg/p2p/engine_test.go` verifying:
+- [x] Task: Integrate `CrossLANMode` and `HTTPSRegistryClient` into `pkg/p2p.Engine` 2b2d5be
+    - [x] Write failing unit and integration tests in `pkg/p2p/engine_test.go` verifying:
         1. Intra-LAN UDP beacon discovery remains active across all `CrossLANMode` values (`dht`, `https`, `both`, `none`).
         2. Two `Engine` instances configured with `CrossLANMode: "https"` (and no DHT bootstrap) discover each other via an `httptest.Server` mock registry, establish a direct Noise connection, and replicate SQLite changesets end-to-end.
         3. Disallowed peers are rejected according to `ReplicationPolicy`.
         4. `Engine.Close()` cleanly unannounces the peer from the HTTPS registry.
-    - [ ] Update `EngineOptions`, `OpenEngine`, `OpenEngineFromNodeConfig`, `Close` in `pkg/p2p/engine.go` and export public types/aliases in `pkg/p2p/store.go`.
-    - [ ] Run full test suite `go test -v -cover ./...` and verify all tests pass.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Engine Integration & End-to-End Cross-LAN Replication (`pkg/p2p`)' (Protocol in workflow.md)
+    - [x] Update `EngineOptions`, `OpenEngine`, `OpenEngineFromNodeConfig`, `Close` in `pkg/p2p/engine.go` and export public types/aliases in `pkg/p2p/store.go`.
+    - [x] Run full test suite `go test -v -cover ./...` and verify all tests pass.
+- [~] Task: Conductor - User Manual Verification 'Phase 3: Engine Integration & End-to-End Cross-LAN Replication (`pkg/p2p`)' (Protocol in workflow.md)
 
 ## Phase 4: OpenAPI 3.1 Specification & Coding Agent Specification (`docs/`)
 - [ ] Task: Author OpenAPI 3.1 Specification (`docs/https-swarm-openapi.yaml`)
