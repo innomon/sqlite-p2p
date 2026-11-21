@@ -9,7 +9,7 @@
     - [x] Document the Configurable Cross-LAN Discovery architecture (always-on LAN UDP beacon + configurable DHT / Secure HTTPS Registry API) in `conductor/tech-stack.md` and `conductor/product.md`.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Configuration & Cross-LAN Mode Modeling' (Protocol in workflow.md) 49a8181
 
-## Phase 2: Secure HTTPS Discovery Client & Cryptographic Request Signing (`internal/p2p`)
+## Phase 2: Secure HTTPS Discovery Client & Cryptographic Request Signing (`internal/p2p`) [checkpoint: 7e295e2]
 - [x] Task: Implement Ed25519 Request Signing and Canonical Verification Helpers 2dd66f2
     - [x] Write failing unit tests in `internal/p2p/https_registry_test.go` covering canonical payload construction (`METHOD\nPATH_AND_QUERY\nTIMESTAMP\nSHA256_HEX`), Ed25519 signing using `secretstream.KeyPair`, header attachment (`Authorization`, `X-Peer-Public-Key`, `X-Peer-Timestamp`, `X-Peer-Signature`), and signature verification.
     - [x] Implement request signing and verification utilities in `internal/p2p/https_registry.go`.
@@ -17,10 +17,10 @@
     - [x] Write failing unit tests in `internal/p2p/https_registry_test.go` using `httptest.Server` for `Announce`, `LookupPeers`, `Unannounce`, `Health`, `ReplicationPolicy` filtering, self-PK skipping, and periodic poll/announce worker lifecycle.
     - [x] Implement `HTTPSRegistryClient` and background discovery worker in `internal/p2p/https_registry.go`, connecting discovered peers via a dial callback (`SwarmManager.ConnectDirect`).
     - [x] Run `go test -v -cover ./internal/p2p/...` and confirm all tests pass with >80% coverage.
-- [~] Task: Conductor - User Manual Verification 'Phase 2: Secure HTTPS Discovery Client & Cryptographic Request Signing (`internal/p2p`)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Secure HTTPS Discovery Client & Cryptographic Request Signing (`internal/p2p`)' (Protocol in workflow.md) 7e295e2
 
 ## Phase 3: Engine Integration & End-to-End Cross-LAN Replication (`pkg/p2p`)
-- [ ] Task: Integrate `CrossLANMode` and `HTTPSRegistryClient` into `pkg/p2p.Engine`
+- [~] Task: Integrate `CrossLANMode` and `HTTPSRegistryClient` into `pkg/p2p.Engine`
     - [ ] Write failing unit and integration tests in `pkg/p2p/engine_test.go` verifying:
         1. Intra-LAN UDP beacon discovery remains active across all `CrossLANMode` values (`dht`, `https`, `both`, `none`).
         2. Two `Engine` instances configured with `CrossLANMode: "https"` (and no DHT bootstrap) discover each other via an `httptest.Server` mock registry, establish a direct Noise connection, and replicate SQLite changesets end-to-end.
