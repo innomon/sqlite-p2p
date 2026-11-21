@@ -8,11 +8,11 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Core Vector Math & Binary Serialization (`pkg/vect`)' (Protocol in workflow.md) 804064b
 
 ## Phase 2: SQLite Scalar Function Registration & Performance Benchmark (`pkg/vect`)
-- [~] Task: Implement `modernc.org/sqlite` deterministic scalar function registration and K-NN benchmarks
-    - [~] Write failing SQL integration and benchmark tests in `pkg/vect/register_test.go` covering `vec_cosine_similarity`, `vec_cosine_distance`, `vec_l2_distance`, `vec_length`, and `vec_pack_f32` via `database/sql` queries (including `NULL` propagation, SQLite error reporting on corrupt blobs / dimension mismatches, Top-K query ordering, threshold filtering, and the 10,000-vector x 768-dimension <15ms linear scan benchmark).
-    - [ ] Implement `pkg/vect/register.go` with idempotent `RegisterExtension()` (`sync.Once` + `init()`) registering all 5 deterministic scalar functions on `modernc.org/sqlite`.
-    - [ ] Run tests and benchmarks (`go test -v -bench=. ./pkg/vect/...`) to verify all scalar SQL tests pass and the 10k x 768d scan meets the <15ms target.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: SQLite Scalar Function Registration & Performance Benchmark (`pkg/vect`)' (Protocol in workflow.md)
+- [x] Task: Implement `modernc.org/sqlite` deterministic scalar function registration and K-NN benchmarks 4271a10
+    - [x] Write failing SQL integration and benchmark tests in `pkg/vect/register_test.go` covering `vec_cosine_similarity`, `vec_cosine_distance`, `vec_l2_distance`, `vec_length`, and `vec_pack_f32` via `database/sql` queries (including `NULL` propagation, SQLite error reporting on corrupt blobs / dimension mismatches, Top-K query ordering, threshold filtering, and the 10,000-vector x 768-dimension <15ms linear scan benchmark).
+    - [x] Implement `pkg/vect/register.go` with idempotent `RegisterExtension()` (`sync.Once` + `init()`) registering all 5 deterministic scalar functions on `modernc.org/sqlite`.
+    - [x] Run tests and benchmarks (`go test -v -bench=. ./pkg/vect/...`) to verify all scalar SQL tests pass and the 10k x 768d scan meets the <15ms target.
+- [~] Task: Conductor - User Manual Verification 'Phase 2: SQLite Scalar Function Registration & Performance Benchmark (`pkg/vect`)' (Protocol in workflow.md)
 
 ## Phase 3: Store Integration, Repository Helpers & Multi-Table P2P Vector Replication
 - [ ] Task: Integrate `pkg/vect` into `internal/store`, `pkg/p2p`, and verify multi-table P2P vector replication
