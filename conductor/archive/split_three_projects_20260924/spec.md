@@ -12,7 +12,7 @@ This specification details the structural and architectural separation of the cu
 
 ### 2.1 Project 1: `sqlite-p2p` (Core Engine)
 - **Scope**: Domain-agnostic, decentralized SQLite database engine.
-- **Repository Location**: `/home/innomon/B204-zone/owly-sewa/sqlite-p2p` (renamed from `crm-sqlite-pear-p2p`).
+- **Repository Location**: `$PROJECT_ROOT/sqlite-p2p` (renamed from `crm-sqlite-pear-p2p`).
 - **Module Name**: `sqlite-p2p`
 - **Responsibilities**:
   - Pure Go SQLite runtime (`modernc.org/sqlite` with zero CGO) configured with WAL mode, foreign keys, and normal synchronization.
@@ -25,7 +25,7 @@ This specification details the structural and architectural separation of the cu
 
 ### 2.2 Project 2: `crm-lite` (CRM Application)
 - **Scope**: Multimodal, agentic CRM application.
-- **Repository Location**: `/home/innomon/B204-zone/owly-sewa/crm-lite`
+- **Repository Location**: `$PROJECT_ROOT/crm-lite`
 - **Module Name**: `crm-lite`
 - **Responsibilities**:
   - Deterministic customer key generation (`BASE32(SHA256(phone))`).
@@ -51,7 +51,7 @@ This specification details the structural and architectural separation of the cu
 
 ## 3. Phased Implementation Roadmap
 - **Phase 1**: Refine `sqlite-p2p` core engine and provide clean exported public API (`pkg/p2p`).
-- **Phase 2**: Scaffold and extract `crm-lite` into `/home/innomon/B204-zone/owly-sewa/crm-lite` and verify CLI, MCP, and tests.
+- **Phase 2**: Scaffold and extract `crm-lite` into `$PROJECT_ROOT/crm-lite` and verify CLI, MCP, and tests.
 - **Phase 3**: Merge `whatsadk-litep2p-storage` into `/home/innomon/B204-zone/orez/adk/whatsadk` and verify WhatsaDK test suite.
 - **Phase 4**: Decouple remaining domain files from `sqlite-p2p`, perform repository renaming, and update documentation across all repositories.
 

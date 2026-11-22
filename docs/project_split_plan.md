@@ -57,7 +57,7 @@ flowchart TD
 
 ### Project 1: `sqlite-p2p` (The Core Engine)
 
-- **Directory**: `/home/innomon/B204-zone/owly-sewa/sqlite-p2p`
+- **Directory**: `$PROJECT_ROOT/sqlite-p2p`
 - **Go Module**: `sqlite-p2p`
 - **Scope & Role**:
   - A standalone, domain-agnostic, decentralized SQLite database engine library.
@@ -86,7 +86,7 @@ flowchart TD
 
 ### Project 2: `crm-lite` (The Application Layer)
 
-- **Directory**: `/home/innomon/B204-zone/owly-sewa/crm-lite`
+- **Directory**: `$PROJECT_ROOT/crm-lite`
 - **Go Module**: `crm-lite`
 - **Scope & Role**:
   - The multimodal CRM application built on top of `sqlite-p2p`.
@@ -144,7 +144,7 @@ flowchart LR
 
 ### Phase 2: Scaffold & Extract `crm-lite`
 
-- Initialize `/home/innomon/B204-zone/owly-sewa/crm-lite` with its own `go.mod`.
+- Initialize `$PROJECT_ROOT/crm-lite` with its own `go.mod`.
 - Move CRM-specific packages (`cli`, `mcp`, `ontology`, `config`, `schema`, `cmd/crm-peer`).
 - Configure `replace sqlite-p2p => ../sqlite-p2p`.
 - Verify build of `bin/crm-peer`, test suite, and MCP server.
@@ -159,5 +159,5 @@ flowchart LR
 ### Phase 4: Final Decoupling, Directory Renaming & Documentation
 
 - Delete extracted application code from `sqlite-p2p`.
-- Rename repository directory to `/home/innomon/B204-zone/owly-sewa/sqlite-p2p`.
+- Rename repository directory to `$PROJECT_ROOT/sqlite-p2p`.
 - Author dedicated `README.md` and `ARCHITECTURE.md` for each project.

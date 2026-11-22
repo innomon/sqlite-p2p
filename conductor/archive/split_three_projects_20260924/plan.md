@@ -11,7 +11,7 @@
 
 ## Phase 2: Scaffold & Extract `crm-lite` Application [checkpoint: 6d2b93d]
 - [x] Task: Scaffold `crm-lite` repository (6721d7b)
-    - [x] Create `/home/innomon/B204-zone/owly-sewa/crm-lite` with `go.mod` requiring `sqlite-p2p`
+    - [x] Create `$PROJECT_ROOT/crm-lite` with `go.mod` requiring `sqlite-p2p`
     - [x] Setup initial build and test verification scripts
 - [x] Task: Migrate CRM components to `crm-lite` (c501da4)
     - [x] Move `cmd/crm-peer`, `internal/cli`, `internal/mcp`, `internal/ontology`, `internal/config`, `schema.go`, and `ontology.go` into `crm-lite`

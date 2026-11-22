@@ -319,7 +319,7 @@ Command subcommand registries should be handcrafted, don't use any their party l
 
 for logging use the guidelines of [logging pattern](structured_logging_pattern.md)
 
-for pure go implementation of [pear-p2p](https://docs.pears.com/p2p) see /home/innomon/B204-zone/owly-sewa/go-pear
+for pure go implementation of [pear-p2p](https://docs.pears.com/p2p) see $PROJECT_ROOT/go-pear
 
 ## 7. Development & Implementation Roadmap for Coding Agent
 
