@@ -8,4 +8,5 @@ data/
 *.hypercore
 .env
 **/.env
+*.sync-conflict-*
 
