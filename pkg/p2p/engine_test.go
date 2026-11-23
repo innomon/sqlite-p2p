@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"sqlite-p2p/internal/store"
 	"sqlite-p2p/pkg/config"
 	"sqlite-p2p/pkg/p2p"
@@ -368,90 +368,120 @@ func TestEngine_CustomDefaultTableAndCDCPoller(t *testing.T) {
 	_ = noSwarmEng.EvictDisallowed()
 }
 
-func TestEngine_HTTPSCrossLANDiscoveryAndReplication(t *testing.T) {
+func TestEngine_NostrCrossLANDiscoveryAndReplication(t *testing.T) {
 	ctx := context.Background()
 
 	var regMu sync.Mutex
-	peersByTopic := make(map[string]map[string]p2p.HTTPSPeerRecord)
+	eventsByTopic := make(map[string]map[string]p2p.NostrEvent)
 	unannouncedPKs := make(map[string]bool)
+	var subscribers []*websocket.Conn
 
-	regSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		if r.Header.Get("Authorization") != "Bearer e2e-https-token" {
-			http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
-			return
-		}
-		if _, err := p2p.VerifyHTTPSRequestSignature(r, body, time.Now(), 5*time.Minute); err != nil {
-			http.Error(w, `{"error":"invalid signature"}`, http.StatusUnauthorized)
-			return
-		}
-
-		var topic [32]byte
-		copy(topic[:], "e2e-https-cross-lan-topic-123456")
-		topicHex := hex.EncodeToString(topic[:])
-
-		switch {
-		case r.Method == http.MethodPost && r.URL.Path == "/v1/topics/"+topicHex+"/announce":
-			var req p2p.HTTPSAnnounceRequest
-			if err := json.Unmarshal(body, &req); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
-			regMu.Lock()
-			if peersByTopic[topicHex] == nil {
-				peersByTopic[topicHex] = make(map[string]p2p.HTTPSPeerRecord)
-			}
-			peersByTopic[topicHex][req.PeerPK] = p2p.HTTPSPeerRecord{
-				PeerPK:    req.PeerPK,
-				SigningPK: req.SigningPK,
-				NodeID:    req.NodeID,
-				Endpoints: req.Endpoints,
-				UpdatedAt: time.Now().Unix(),
-			}
-			var peerList []p2p.HTTPSPeerRecord
-			for _, pr := range peersByTopic[topicHex] {
-				peerList = append(peerList, pr)
-			}
-			regMu.Unlock()
-
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(p2p.HTTPSAnnounceResponse{
-				Topic:  topicHex,
-				TTLSec: 60,
-				Peers:  peerList,
-			})
-		case r.Method == http.MethodDelete:
-			regMu.Lock()
-			peerPK := r.Header.Get(p2p.HeaderPeerPublicKey)
-			unannouncedPKs[peerPK] = true
-			if peersByTopic[topicHex] != nil {
-				delete(peersByTopic[topicHex], peerPK)
-			}
-			regMu.Unlock()
-			w.WriteHeader(http.StatusNoContent)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer regSrv.Close()
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true },
+	}
 
 	var topic [32]byte
-	copy(topic[:], "e2e-https-cross-lan-topic-123456")
+	copy(topic[:], "e2e-nostr-cross-lan-topic-123456")
+	topicHex := hex.EncodeToString(topic[:])
+
+	relaySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer e2e-nostr-token" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		regMu.Lock()
+		subscribers = append(subscribers, conn)
+		regMu.Unlock()
+
+		for {
+			_, raw, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			var frame []json.RawMessage
+			if err := json.Unmarshal(raw, &frame); err != nil || len(frame) < 2 {
+				continue
+			}
+			var msgType string
+			_ = json.Unmarshal(frame[0], &msgType)
+
+			switch msgType {
+			case "EVENT":
+				var ev p2p.NostrEvent
+				if err := json.Unmarshal(frame[1], &ev); err != nil {
+					continue
+				}
+				if err := p2p.VerifyNostrEvent(&ev, time.Now(), 5*time.Minute); err != nil {
+					okMsg, _ := json.Marshal([]any{"OK", ev.ID, false, err.Error()})
+					_ = conn.WriteMessage(websocket.TextMessage, okMsg)
+					continue
+				}
+				switch ev.Kind {
+				case p2p.KindPeerAnnounce:
+					if rec, err := p2p.ParseAnnounceEvent(&ev, topicHex, time.Now(), 5*time.Minute); err == nil {
+						regMu.Lock()
+						if eventsByTopic[topicHex] == nil {
+							eventsByTopic[topicHex] = make(map[string]p2p.NostrEvent)
+						}
+						eventsByTopic[topicHex][rec.PeerPK] = ev
+						regMu.Unlock()
+					}
+				case p2p.KindEventDeletion:
+					regMu.Lock()
+					for _, tag := range ev.Tags {
+						if len(tag) >= 2 && tag[0] == "p" {
+							unannouncedPKs[tag[1]] = true
+							if eventsByTopic[topicHex] != nil {
+								delete(eventsByTopic[topicHex], tag[1])
+							}
+						}
+					}
+					regMu.Unlock()
+				}
+				okMsg, _ := json.Marshal([]any{"OK", ev.ID, true, ""})
+				_ = conn.WriteMessage(websocket.TextMessage, okMsg)
+			case "REQ":
+				var subID string
+				_ = json.Unmarshal(frame[1], &subID)
+				regMu.Lock()
+				var currentEvents []p2p.NostrEvent
+				for _, ev := range eventsByTopic[topicHex] {
+					currentEvents = append(currentEvents, ev)
+				}
+				regMu.Unlock()
+				for _, ev := range currentEvents {
+					evFrame, _ := json.Marshal([]any{"EVENT", subID, ev})
+					_ = conn.WriteMessage(websocket.TextMessage, evFrame)
+				}
+				eoseFrame, _ := json.Marshal([]any{"EOSE", subID})
+				_ = conn.WriteMessage(websocket.TextMessage, eoseFrame)
+			case "CLOSE":
+				return
+			}
+		}
+	}))
+	defer relaySrv.Close()
 
 	kpA, _ := secretstream.GenerateKeyPair()
 	kpB, _ := secretstream.GenerateKeyPair()
 
 	engA, err := p2p.OpenEngine(p2p.EngineOptions{
-		NodeID:            "node-A",
-		DBPath:            ":memory:",
-		SwarmTopic:        topic,
-		BeaconPort:        49811, // Separate LAN broadcast domain 1
-		CrossLANMode:      config.CrossLANHTTPS,
-		KeyPair:           kpA,
-		HTTPSPollInterval: 60 * time.Millisecond,
-		HTTPSAPI: &config.HTTPSAPIConfig{
-			URL:           regSrv.URL,
-			APIKey:        "e2e-https-token",
+		NodeID:                "node-A",
+		DBPath:                ":memory:",
+		SwarmTopic:            topic,
+		BeaconPort:            49811, // Separate LAN broadcast domain 1
+		CrossLANMode:          config.CrossLANNostr,
+		KeyPair:               kpA,
+		NostrAnnounceInterval: 60 * time.Millisecond,
+		NostrRelay: &config.NostrRelayConfig{
+			URL:           relaySrv.URL,
+			APIKey:        "e2e-nostr-token",
 			AdvertiseAddr: "127.0.0.1:0", // port will be normalized to Swarm listening port
 		},
 	})
@@ -461,16 +491,16 @@ func TestEngine_HTTPSCrossLANDiscoveryAndReplication(t *testing.T) {
 	defer engA.Close()
 
 	engB, err := p2p.OpenEngine(p2p.EngineOptions{
-		NodeID:            "node-B",
-		DBPath:            ":memory:",
-		SwarmTopic:        topic,
-		BeaconPort:        49812, // Separate LAN broadcast domain 2
-		CrossLANMode:      config.CrossLANHTTPS,
-		KeyPair:           kpB,
-		HTTPSPollInterval: 60 * time.Millisecond,
-		HTTPSAPI: &config.HTTPSAPIConfig{
-			URL:           regSrv.URL,
-			APIKey:        "e2e-https-token",
+		NodeID:                "node-B",
+		DBPath:                ":memory:",
+		SwarmTopic:            topic,
+		BeaconPort:            49812, // Separate LAN broadcast domain 2
+		CrossLANMode:          config.CrossLANNostr,
+		KeyPair:               kpB,
+		NostrAnnounceInterval: 60 * time.Millisecond,
+		NostrRelay: &config.NostrRelayConfig{
+			URL:           relaySrv.URL,
+			APIKey:        "e2e-nostr-token",
 			AdvertiseAddr: "127.0.0.1:0",
 		},
 	})
@@ -479,19 +509,19 @@ func TestEngine_HTTPSCrossLANDiscoveryAndReplication(t *testing.T) {
 	}
 	defer engB.Close()
 
-	if engA.CrossLANMode() != config.CrossLANHTTPS || engA.HTTPSRegistry() == nil {
-		t.Fatalf("expected CrossLANHTTPS and non-nil HTTPSRegistry on engA")
+	if engA.CrossLANMode() != config.CrossLANNostr || engA.CrossLANDiscovery() == nil || engA.NostrDiscovery() == nil {
+		t.Fatalf("expected CrossLANNostr and non-nil CrossLANDiscovery/NostrDiscovery on engA")
 	}
 
-	// Write a record on Node A and wait for HTTPS discovery + direct TCP replication to Node B
-	if err := engA.Put(ctx, "https:cust:1", json.RawMessage(`{"tier":"enterprise"}`), []byte("Replicated across firewall via HTTPS discovery")); err != nil {
+	// Write a record on Node A and wait for Nostr wss:// discovery + direct TCP replication to Node B
+	if err := engA.Put(ctx, "nostr:cust:1", json.RawMessage(`{"tier":"enterprise"}`), []byte("Replicated across firewall via Nostr Buzz relay")); err != nil {
 		t.Fatalf("engA.Put failed: %v", err)
 	}
 
 	deadline := time.Now().Add(4 * time.Second)
 	var replicated *store.Record
 	for time.Now().Before(deadline) {
-		rec, err := engB.Get(ctx, "https:cust:1")
+		rec, err := engB.Get(ctx, "nostr:cust:1")
 		if err == nil && rec != nil {
 			replicated = rec
 			break
@@ -500,13 +530,13 @@ func TestEngine_HTTPSCrossLANDiscoveryAndReplication(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	if replicated == nil {
-		t.Fatal("timed out waiting for record to replicate from node-A to node-B via HTTPS discovery")
+		t.Fatal("timed out waiting for record to replicate from node-A to node-B via Nostr discovery")
 	}
-	if string(replicated.Data) != "Replicated across firewall via HTTPS discovery" {
+	if string(replicated.Data) != "Replicated across firewall via Nostr Buzz relay" {
 		t.Errorf("unexpected replicated payload: %q", string(replicated.Data))
 	}
 
-	// Close node-B and verify it unannounces from the HTTPS registry
+	// Close node-B and verify it publishes NIP-09 unannounce event on Close()
 	if err := engB.Close(); err != nil {
 		t.Fatalf("engB.Close failed: %v", err)
 	}
@@ -514,7 +544,7 @@ func TestEngine_HTTPSCrossLANDiscoveryAndReplication(t *testing.T) {
 	wasUnannounced := unannouncedPKs[hex.EncodeToString(kpB.Public[:])]
 	regMu.Unlock()
 	if !wasUnannounced {
-		t.Error("expected node-B to unannounce from HTTPS registry on Close()")
+		t.Error("expected node-B to publish NIP-09 unannounce event on Close()")
 	}
 }
 
@@ -522,14 +552,14 @@ func TestEngine_CrossLANModeValidationAndModes(t *testing.T) {
 	var topic [32]byte
 	copy(topic[:], "test-cross-lan-modes-topic-00001")
 
-	// Missing HTTPSAPI URL in CrossLANHTTPS mode should return error
+	// Missing NostrRelay URL in CrossLANNostr mode should return error
 	_, err := p2p.OpenEngine(p2p.EngineOptions{
 		DBPath:       ":memory:",
 		SwarmTopic:   topic,
-		CrossLANMode: config.CrossLANHTTPS,
+		CrossLANMode: config.CrossLANNostr,
 	})
 	if err == nil {
-		t.Fatal("expected error when CrossLANMode is https without HTTPSAPI.URL")
+		t.Fatal("expected error when CrossLANMode is nostr without NostrRelay.URL")
 	}
 
 	// Invalid CrossLANMode should return error
@@ -555,22 +585,44 @@ func TestEngine_CrossLANModeValidationAndModes(t *testing.T) {
 	if engNone.CrossLANMode() != config.CrossLANNone {
 		t.Errorf("expected CrossLANNone, got %q", engNone.CrossLANMode())
 	}
-	if engNone.HTTPSRegistry() != nil {
-		t.Error("expected nil HTTPSRegistry in CrossLANNone mode")
+	if engNone.CrossLANDiscovery() != nil || engNone.NostrDiscovery() != nil {
+		t.Error("expected nil CrossLANDiscovery/NostrDiscovery in CrossLANNone mode")
 	}
 
-	// Test CrossLANBoth mode with explicit host-only AdvertiseAddr and NewHTTPSRegistryClient export
+	// Test CrossLANBoth mode with explicit host-only AdvertiseAddr and NewNostrDiscoveryClient export
 	kp, _ := secretstream.GenerateKeyPair()
-	if _, err := p2p.NewHTTPSRegistryClient(p2p.HTTPSRegistryOptions{BaseURL: "https://example.com", KeyPair: kp}); err != nil {
-		t.Errorf("expected NewHTTPSRegistryClient export to succeed, got %v", err)
+	if _, err := p2p.NewNostrDiscoveryClient(p2p.NostrDiscoveryOptions{RelayURL: "wss://buzz.example.com", KeyPair: kp}); err != nil {
+		t.Errorf("expected NewNostrDiscoveryClient export to succeed, got %v", err)
 	}
+	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 	mockSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodDelete {
-			w.WriteHeader(http.StatusNoContent)
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"topic":"","ttl_sec":60,"peers":[]}`))
+		defer conn.Close()
+		for {
+			_, raw, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			var frame []json.RawMessage
+			if json.Unmarshal(raw, &frame) == nil && len(frame) >= 2 {
+				var msgType string
+				_ = json.Unmarshal(frame[0], &msgType)
+				if msgType == "EVENT" {
+					var ev p2p.NostrEvent
+					_ = json.Unmarshal(frame[1], &ev)
+					okMsg, _ := json.Marshal([]any{"OK", ev.ID, true, ""})
+					_ = conn.WriteMessage(websocket.TextMessage, okMsg)
+				} else if msgType == "REQ" {
+					var subID string
+					_ = json.Unmarshal(frame[1], &subID)
+					eoseMsg, _ := json.Marshal([]any{"EOSE", subID})
+					_ = conn.WriteMessage(websocket.TextMessage, eoseMsg)
+				}
+			}
+		}
 	}))
 	defer mockSrv.Close()
 
@@ -579,7 +631,7 @@ func TestEngine_CrossLANModeValidationAndModes(t *testing.T) {
 		SwarmTopic:   topic,
 		BeaconPort:   49815,
 		CrossLANMode: config.CrossLANBoth,
-		HTTPSAPI: &config.HTTPSAPIConfig{
+		NostrRelay: &config.NostrRelayConfig{
 			URL:           mockSrv.URL,
 			AdvertiseAddr: "127.0.0.1",
 		},

@@ -37,11 +37,11 @@ type EngineOptions struct {
 	SwarmTopic        [32]byte
 	SwarmPort         int
 	BeaconPort        int
-	CrossLANMode      config.CrossLANMode
-	Bootstrap         []string
-	HTTPSAPI          *config.HTTPSAPIConfig
-	HTTPSPollInterval time.Duration
-	KeyPair           *secretstream.KeyPair
+	CrossLANMode          config.CrossLANMode
+	Bootstrap             []string
+	NostrRelay            *config.NostrRelayConfig
+	NostrAnnounceInterval time.Duration
+	KeyPair               *secretstream.KeyPair
 	Policy            *policy.ReplicationPolicy
 	KeyRegistry       *crypto.KeyRegistry
 	Logger            *slog.Logger
@@ -72,9 +72,10 @@ type Engine struct {
 	replEngine    *internalp2p.ReplicationEngine
 	feed          *internalp2p.ChangesetFeed
 	replicator    *internalp2p.Replicator
-	swarm         *internalp2p.SwarmManager
-	httpsRegistry *internalp2p.HTTPSRegistryClient
-	crossLANMode  config.CrossLANMode
+	swarm          *internalp2p.SwarmManager
+	crossLANDisc   internalp2p.CrossLANDiscoveryClient
+	nostrDiscovery *internalp2p.NostrDiscoveryClient
+	crossLANMode   config.CrossLANMode
 	policy        *policy.ReplicationPolicy
 	keys          *crypto.KeyRegistry
 	beaconCancel  context.CancelFunc
@@ -122,7 +123,7 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 
 	modeCfg := &config.NodeConfig{
 		CrossLANMode: opts.CrossLANMode,
-		HTTPSAPI:     opts.HTTPSAPI,
+		NostrRelay:   opts.NostrRelay,
 	}
 	if err := modeCfg.Validate(); err != nil {
 		if ownsDB {
@@ -239,28 +240,29 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 		}
 		_ = internalp2p.StartBeaconBroadcaster(beaconCtx, beaconMsg, beaconPort, 2500*time.Millisecond)
 
-		// Initialize Cross-LAN HTTPS Registry Client when CrossLANMode is "https" or "both"
-		if crossMode == config.CrossLANHTTPS || crossMode == config.CrossLANBoth {
-			pollInterval := time.Duration(opts.HTTPSAPI.EffectivePollIntervalSec()) * time.Second
-			if opts.HTTPSPollInterval > 0 {
-				pollInterval = opts.HTTPSPollInterval
+		// Initialize Cross-LAN Nostr Discovery Client when CrossLANMode is "nostr" or "both"
+		if crossMode == config.CrossLANNostr || crossMode == config.CrossLANBoth {
+			announceInterval := time.Duration(opts.NostrRelay.EffectiveAnnounceIntervalSec()) * time.Second
+			if opts.NostrAnnounceInterval > 0 {
+				announceInterval = opts.NostrAnnounceInterval
 			}
-			timeout := time.Duration(opts.HTTPSAPI.EffectiveTimeoutSec()) * time.Second
-			advAddr := resolveAdvertiseEndpoint(opts.HTTPSAPI.AdvertiseAddr, routableDHT, swarmMgr.Port())
+			timeout := time.Duration(opts.NostrRelay.EffectiveTimeoutSec()) * time.Second
+			advAddr := resolveAdvertiseEndpoint(opts.NostrRelay.AdvertiseAddr, routableDHT, swarmMgr.Port())
 
-			httpsClient, err := internalp2p.NewHTTPSRegistryClient(internalp2p.HTTPSRegistryOptions{
-				BaseURL:       opts.HTTPSAPI.URL,
-				APIKey:        opts.HTTPSAPI.APIKey,
-				NodeID:        opts.NodeID,
-				KeyPair:       swarmMgr.KeyPair(),
-				Topic:         opts.SwarmTopic,
-				Endpoints:     []string{advAddr},
-				PollInterval:  pollInterval,
-				Timeout:       timeout,
-				TLSSkipVerify: opts.HTTPSAPI.TLSSkipVerify,
-				Policy:        engine.Policy,
-				DialPeer:      swarmMgr.ConnectDirect,
-				Logger:        opts.Logger,
+			nostrClient, err := internalp2p.NewNostrDiscoveryClient(internalp2p.NostrDiscoveryOptions{
+				RelayURL:         opts.NostrRelay.URL,
+				Relays:           opts.NostrRelay.Relays,
+				APIKey:           opts.NostrRelay.APIKey,
+				NodeID:           opts.NodeID,
+				KeyPair:          swarmMgr.KeyPair(),
+				Topic:            opts.SwarmTopic,
+				Endpoints:        []string{advAddr},
+				AnnounceInterval: announceInterval,
+				Timeout:          timeout,
+				TLSSkipVerify:    opts.NostrRelay.TLSSkipVerify,
+				Policy:           engine.Policy,
+				DialPeer:         swarmMgr.ConnectDirect,
+				Logger:           opts.Logger,
 			})
 			if err != nil {
 				beaconCancel()
@@ -269,10 +271,11 @@ func OpenEngine(opts EngineOptions) (*Engine, error) {
 				if ownsDB {
 					_ = db.Close()
 				}
-				return nil, fmt.Errorf("failed to initialize https registry client: %w", err)
+				return nil, fmt.Errorf("failed to initialize nostr discovery client: %w", err)
 			}
-			httpsClient.Start()
-			engine.httpsRegistry = httpsClient
+			nostrClient.Start()
+			engine.crossLANDisc = nostrClient
+			engine.nostrDiscovery = nostrClient
 		}
 
 		engine.feed = feed
@@ -329,7 +332,7 @@ func OpenEngineFromNodeConfig(cfg *config.NodeConfig) (*Engine, error) {
 		SwarmPort:     cfg.SwarmPort,
 		CrossLANMode:  cfg.EffectiveCrossLANMode(),
 		Bootstrap:     bootstrap,
-		HTTPSAPI:      cfg.HTTPSAPI,
+		NostrRelay:    cfg.NostrRelay,
 		Policy:        pol,
 	}
 
@@ -399,9 +402,14 @@ func (e *Engine) Swarm() *internalp2p.SwarmManager {
 	return e.swarm
 }
 
-// HTTPSRegistry returns the active HTTPSRegistryClient instance, if initialized.
-func (e *Engine) HTTPSRegistry() *internalp2p.HTTPSRegistryClient {
-	return e.httpsRegistry
+// CrossLANDiscovery returns the active CrossLANDiscoveryClient interface instance, if initialized.
+func (e *Engine) CrossLANDiscovery() internalp2p.CrossLANDiscoveryClient {
+	return e.crossLANDisc
+}
+
+// NostrDiscovery returns the active NostrDiscoveryClient instance, if initialized.
+func (e *Engine) NostrDiscovery() *internalp2p.NostrDiscoveryClient {
+	return e.nostrDiscovery
 }
 
 // CrossLANMode returns the effective cross-LAN discovery mode configured for the Engine.
@@ -502,8 +510,9 @@ func (e *Engine) Close() error {
 	e.mu.Lock()
 	beaconCancel := e.beaconCancel
 	e.beaconCancel = nil
-	httpsReg := e.httpsRegistry
-	e.httpsRegistry = nil
+	crossDisc := e.crossLANDisc
+	e.crossLANDisc = nil
+	e.nostrDiscovery = nil
 	replEngine := e.replEngine
 	e.replEngine = nil
 	swarm := e.swarm
@@ -521,8 +530,8 @@ func (e *Engine) Close() error {
 		beaconCancel()
 	}
 
-	if httpsReg != nil {
-		_ = httpsReg.Close()
+	if crossDisc != nil {
+		_ = crossDisc.Close()
 	}
 
 	if replEngine != nil {

@@ -15,7 +15,10 @@ A decentralized, local-first, multi-master SQLite replication engine in Pure Go 
   - Automatically installs `AFTER INSERT`, `AFTER UPDATE`, and `AFTER DELETE` SQLite triggers into `_p2p_cdc_outbox`, guarded by `_p2p_sync_state.applying_remote = 0` so remote changesets never cause infinite replication loops.
   - Emits `OpDDL` (`CREATE TABLE IF NOT EXISTS ...`) changesets to auto-create discovered and newly created tables across peers.
 - **Table-Scoped LWW Conflict Resolution**: Tracks Last-Write-Wins (LWW) timestamps per `(table, key)` pair so identical primary keys across different tables (`crm_store`, `ecom_store`, `orders`) never collide.
-- **Pear/Holepunch P2P Mesh**: Append-only Hypercore feeds, peer discovery over Hyperswarm DHT topics, LAN UDP broadcast auto-discovery, and Autobase multi-writer consensus.
+- **Pear/Holepunch P2P Mesh & Hybrid Cross-LAN Discovery**:
+  - Append-only Hypercore feeds, peer discovery over Hyperswarm DHT topics, always-on LAN UDP broadcast auto-discovery (`DefaultBeaconPort = 49736`), and Autobase multi-writer consensus.
+  - Configurable `cross_lan_mode` (`"dht"`, `"nostr"`, `"both"`, `"none"`) behind a clean `CrossLANDiscoveryClient` interface, supporting cross-LAN and corporate-firewall peer discovery over a **Buzz Nostr Relay (`wss://`)** using NIP-01, NIP-09 (`kind: 5` unannounce), NIP-33 (`kind: 30078` replaceable announcements), NIP-40 (`expiration`), and NIP-42 (`kind: 22242` `AUTH`) with BIP-340 `secp256k1` Schnorr signatures and `ed25519` Swarm identity binding.
+- **Pure Go Vector Search Extension (`pkg/vect`)**: Deterministic IEEE 754 Little-Endian `float32` vector packing and K-NN similarity search (`vec_cosine_similarity`, `vec_cosine_distance`, `vec_l2_distance`, `vec_length`, `vec_pack_f32`) registered automatically on SQLite connections.
 - **Replication Gating & Access Control**: Dynamic three-tier peer authorization (`all`, `whitelist`, `blacklist`) enforced during the Hyperswarm SecretStream handshake with real-time peer eviction.
 - **Privacy & Crypto-Shredding**: Integrated AES-256-GCM symmetric cipher with per-key registry. Deleting a key executes instant cryptographic shredding while retaining replication causality.
 - **Interactive & One-Shot CLI (`cmd/e2e-replication`)**: Handcrafted command registry supporting `put`, `get`, `del`, `list`, `sql` / `/sql` (with `json`, `table`, and `csv` output formats), and `gate` / `/gate`.
@@ -105,6 +108,34 @@ _, _ = engine.DB().Exec(`
     INSERT INTO orders (id, status, total) VALUES ('ORD-101', 'PAID', 3200.0);
 `)
 ```
+
+### Cross-LAN Discovery via Buzz Nostr Relay (`wss://`)
+
+When UDP/HyperDHT traffic across LANs or corporate firewalls is restricted, configure `CrossLANMode` to `"nostr"` (or `"both"` for simultaneous DHT + Nostr discovery). Intra-LAN UDP broadcast beacon discovery remains active in all modes:
+
+```go
+import (
+    "sqlite-p2p/pkg/config"
+    "sqlite-p2p/pkg/p2p"
+)
+
+engine, err := p2p.OpenEngine(p2p.EngineOptions{
+    NodeID:       "crm-node-mumbai-01",
+    DBPath:       "crm.db",
+    EnableWAL:    true,
+    SwarmTopic:   topic,
+    CrossLANMode: config.CrossLANNostr, // "dht" (default), "nostr", "both", or "none"
+    NostrRelay: &config.NostrRelayConfig{
+        URL:                 "wss://buzz.example.com",
+        Relays:              []string{"wss://backup.buzz.example.com"},
+        APIKey:              "optional-gateway-bearer-token",
+        AnnounceIntervalSec: 15,
+        AdvertiseAddr:       "203.0.113.10:0", // port 0 auto-resolves to dynamic Swarm port
+    },
+})
+```
+
+See [docs/nostr-buzz-relay-protocol.yaml](/docs/nostr-buzz-relay-protocol.yaml) and [docs/nostr-buzz-agent-spec.md](/docs/nostr-buzz-agent-spec.md) for the complete Buzz Nostr Relay server specification.
 
 ---
 

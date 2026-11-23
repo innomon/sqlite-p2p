@@ -4,6 +4,8 @@ This document describes the architectural foundation, data protocols, and synchr
 
 - **Developer Setup & Usage Guide**: Refer to [README.md](/README.md) for embedding and API instructions.
 - **Manual E2E Replication Guide**: Refer to [docs/manual-e2e-replication-test.md](/docs/manual-e2e-replication-test.md) for multi-node CLI and SQL replication workflows.
+- **Buzz Nostr Relay Specification**: Refer to [docs/nostr-buzz-agent-spec.md](/docs/nostr-buzz-agent-spec.md) and [docs/nostr-buzz-relay-protocol.yaml](/docs/nostr-buzz-relay-protocol.yaml) for the `wss://` cross-LAN discovery protocol.
+- **Vector Search Specification**: Refer to [docs/sqlite_vector_search_extension_specification.md](/docs/sqlite_vector_search_extension_specification.md) for `pkg/vect` K-NN similarity search.
 
 ---
 
@@ -90,10 +92,19 @@ The entire engine compiles with `CGO_ENABLED=0` using `modernc.org/sqlite`. It c
 - Encryption keys are stored in a local `KeyRegistry`.
 - Purging a key via `keys.PurgeKey(keyID)` renders all historical and replicated ciphertext permanently unrecoverable, fulfilling GDPR right-to-be-forgotten requirements while maintaining replication causal integrity.
 
-### 2.5 HyperDHT Bootstrapping & Swarm Discovery
-- **Zero Static Ports**: Hyperswarm binds to dynamic ephemeral ports (`Port: 0`) assigned by the OS, eliminating the need to expose or port-forward static TCP ports.
-- **Air-Gapped & Offline by Default**: When `bootstrap` is empty or omitted, nodes do not dial public internet bootstrap servers. Instead, nodes operate as independent local DHT roots, ensuring zero data leakage and complete offline capability.
-- **Cluster Bootstrapping**: In private LAN or VPN environments, one node serves as the initial cluster seed, and other nodes provide its dynamic DHT address in their `bootstrap` configuration. Once connected, peers discover each other automatically using the 32-byte Swarm Topic.
-- **Encrypted Transport**: All peer communication is secured using Noise SecretStream sessions before exchanging Hypercore changesets.
-- **Multi-Tenant & Multi-Topic Cryptographic Isolation**: A single HyperDHT bootstrap node (or local LAN beacon port) can concurrently serve multiple independent applications (such as `sqlite-p2p` and `dap`). HyperDHT is topic-agnostic; discovery queries are partitioned by 32-byte topic hashes, preventing cross-cluster data leakage while sharing discovery infrastructure.
+### 2.5 Hybrid Intra-LAN Beacon, HyperDHT & Buzz Nostr Relay (`wss://`) Discovery
+- **Always-On Intra-LAN UDP Beacon (`DefaultBeaconPort = 49736`)**: Nodes on the same local network automatically broadcast and discover each other's routable LAN IP and dynamic port without manual configuration, regardless of `cross_lan_mode`.
+- **Configurable `cross_lan_mode` (`"dht"`, `"nostr"`, `"both"`, `"none"`)**:
+  - `"dht"` (Default): Uses HyperDHT bootstrap seed nodes (`cmd/dht-seed`) over UDP/TCP. When `bootstrap` is empty, nodes operate air-gapped as local DHT roots.
+  - `"nostr"`: Uses `NostrDiscoveryClient` ([internal/p2p/nostr_discovery.go](/internal/p2p/nostr_discovery.go)), implementing the `CrossLANDiscoveryClient` interface over WebSocket Secure (`wss://`) to traverse corporate firewalls and separate LANs via a custom domain **Buzz Nostr Relay**.
+  - `"both"`: Runs HyperDHT bootstrap and Buzz Nostr Relay (`wss://`) discovery concurrently.
+  - `"none"`: Restricts discovery strictly to intra-LAN UDP broadcast beacons and static `peer_addrs`.
+- **Nostr Protocol & Dual Cryptographic Identity Binding**:
+  - Conforms to **NIP-01** (`EVENT`, `REQ`, `CLOSE`, `EOSE`, `OK`), **NIP-33** (`kind: 30078` Parameterized Replaceable Events tagged with `["d", "sqlite-p2p:<topic_hex>"]` and `["t", "<topic_hex>"]`), **NIP-40** (`expiration` TTL), **NIP-09** (`kind: 5` deletion on `Engine.Close()`), and **NIP-42** (`kind: 22242` client authentication).
+  - Deterministically derives a 32-byte `secp256k1` Nostr keypair from `sha256("sqlite-p2p:nostr:v1:" || KeyPair.Private[:])` for BIP-340 Schnorr event signing, and embeds an `ed25519` signature (`peer_sig`) inside the event payload to cryptographically bind the node's 32-byte Noise/Swarm `peer_pk` to its Nostr identity.
+- **Direct Encrypted Transport**: Once a peer endpoint is discovered (via LAN beacon, HyperDHT, or Nostr `wss://` push), nodes dial each other directly via `SwarmManager.ConnectDirect(host, port)`, verify `ReplicationPolicy.IsAllowed(peerPK)`, and establish an encrypted Noise SecretStream session before exchanging Hypercore changesets.
+
+### 2.6 Pure Go SQLite Vector Search Extension (`pkg/vect`)
+- Automatically registers deterministic scalar SQL functions (`vec_cosine_similarity`, `vec_cosine_distance`, `vec_l2_distance`, `vec_length`, `vec_pack_f32`) on every `modernc.org/sqlite` connection opened via `store.OpenDB`.
+- Stores embeddings as compact Little-Endian IEEE 754 `float32` `BLOB` columns that replicate seamlessly across peers via the multi-table SQLite CDC trigger pipeline.
 

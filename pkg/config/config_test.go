@@ -126,15 +126,16 @@ func TestLoadConfigFileMissing(t *testing.T) {
 	}
 }
 
-func TestCrossLANModeAndHTTPSAPIConfig(t *testing.T) {
+func TestCrossLANModeAndNostrRelayConfig(t *testing.T) {
 	jsonStr := `{
-		"node_id": "https-node",
-		"swarm_topic": "https-topic",
-		"cross_lan_mode": "https",
-		"https_api": {
-			"url": "https://swarm-api.example.com",
+		"node_id": "nostr-node",
+		"swarm_topic": "nostr-topic",
+		"cross_lan_mode": "nostr",
+		"nostr_relay": {
+			"url": "wss://buzz.example.com",
+			"relays": ["wss://buzz.example.com", "wss://backup.buzz.example.com"],
 			"api_key": "secret-token-123",
-			"poll_interval_sec": 20,
+			"announce_interval_sec": 20,
 			"timeout_sec": 8,
 			"advertise_addr": "203.0.113.10:49737",
 			"tls_skip_verify": true
@@ -146,28 +147,32 @@ func TestCrossLANModeAndHTTPSAPIConfig(t *testing.T) {
 		t.Fatalf("LoadConfig failed: %v", err)
 	}
 
-	if cfg.EffectiveCrossLANMode() != config.CrossLANHTTPS {
-		t.Errorf("expected EffectiveCrossLANMode %q, got %q", config.CrossLANHTTPS, cfg.EffectiveCrossLANMode())
+	if cfg.EffectiveCrossLANMode() != config.CrossLANNostr {
+		t.Errorf("expected EffectiveCrossLANMode %q, got %q", config.CrossLANNostr, cfg.EffectiveCrossLANMode())
 	}
-	if cfg.HTTPSAPI == nil {
-		t.Fatal("expected non-nil HTTPSAPI config")
+	if cfg.NostrRelay == nil {
+		t.Fatal("expected non-nil NostrRelay config")
 	}
-	if cfg.HTTPSAPI.URL != "https://swarm-api.example.com" {
-		t.Errorf("expected URL 'https://swarm-api.example.com', got %q", cfg.HTTPSAPI.URL)
+	if cfg.NostrRelay.URL != "wss://buzz.example.com" {
+		t.Errorf("expected URL 'wss://buzz.example.com', got %q", cfg.NostrRelay.URL)
 	}
-	if cfg.HTTPSAPI.APIKey != "secret-token-123" {
-		t.Errorf("expected APIKey 'secret-token-123', got %q", cfg.HTTPSAPI.APIKey)
+	urls := cfg.NostrRelay.EffectiveRelayURLs()
+	if len(urls) != 2 || urls[0] != "wss://buzz.example.com" || urls[1] != "wss://backup.buzz.example.com" {
+		t.Errorf("unexpected EffectiveRelayURLs: %v", urls)
 	}
-	if cfg.HTTPSAPI.EffectivePollIntervalSec() != 20 {
-		t.Errorf("expected poll_interval_sec 20, got %d", cfg.HTTPSAPI.EffectivePollIntervalSec())
+	if cfg.NostrRelay.APIKey != "secret-token-123" {
+		t.Errorf("expected APIKey 'secret-token-123', got %q", cfg.NostrRelay.APIKey)
 	}
-	if cfg.HTTPSAPI.EffectiveTimeoutSec() != 8 {
-		t.Errorf("expected timeout_sec 8, got %d", cfg.HTTPSAPI.EffectiveTimeoutSec())
+	if cfg.NostrRelay.EffectiveAnnounceIntervalSec() != 20 {
+		t.Errorf("expected announce_interval_sec 20, got %d", cfg.NostrRelay.EffectiveAnnounceIntervalSec())
 	}
-	if cfg.HTTPSAPI.AdvertiseAddr != "203.0.113.10:49737" {
-		t.Errorf("expected advertise_addr '203.0.113.10:49737', got %q", cfg.HTTPSAPI.AdvertiseAddr)
+	if cfg.NostrRelay.EffectiveTimeoutSec() != 8 {
+		t.Errorf("expected timeout_sec 8, got %d", cfg.NostrRelay.EffectiveTimeoutSec())
 	}
-	if !cfg.HTTPSAPI.TLSSkipVerify {
+	if cfg.NostrRelay.AdvertiseAddr != "203.0.113.10:49737" {
+		t.Errorf("expected advertise_addr '203.0.113.10:49737', got %q", cfg.NostrRelay.AdvertiseAddr)
+	}
+	if !cfg.NostrRelay.TLSSkipVerify {
 		t.Errorf("expected tls_skip_verify true")
 	}
 	if err := cfg.Validate(); err != nil {
@@ -190,13 +195,16 @@ func TestCrossLANModeDefaultsAndValidation(t *testing.T) {
 		t.Errorf("expected empty config EffectiveCrossLANMode %q, got %q", config.CrossLANDHT, emptyCfg.EffectiveCrossLANMode())
 	}
 
-	// Default poll interval & timeout on HTTPSAPIConfig
-	var nilHTTPS *config.HTTPSAPIConfig
-	if nilHTTPS.EffectivePollIntervalSec() != config.DefaultHTTPSPollIntervalSec {
-		t.Errorf("expected default poll interval %d, got %d", config.DefaultHTTPSPollIntervalSec, nilHTTPS.EffectivePollIntervalSec())
+	// Default announce interval & timeout on NostrRelayConfig
+	var nilNostr *config.NostrRelayConfig
+	if nilNostr.EffectiveAnnounceIntervalSec() != config.DefaultNostrAnnounceIntervalSec {
+		t.Errorf("expected default announce interval %d, got %d", config.DefaultNostrAnnounceIntervalSec, nilNostr.EffectiveAnnounceIntervalSec())
 	}
-	if nilHTTPS.EffectiveTimeoutSec() != config.DefaultHTTPSTimeoutSec {
-		t.Errorf("expected default timeout %d, got %d", config.DefaultHTTPSTimeoutSec, nilHTTPS.EffectiveTimeoutSec())
+	if nilNostr.EffectiveTimeoutSec() != config.DefaultNostrTimeoutSec {
+		t.Errorf("expected default timeout %d, got %d", config.DefaultNostrTimeoutSec, nilNostr.EffectiveTimeoutSec())
+	}
+	if nilNostr.EffectiveRelayURLs() != nil {
+		t.Errorf("expected nil relay URLs for nil NostrRelayConfig")
 	}
 
 	// Invalid mode
@@ -205,15 +213,15 @@ func TestCrossLANModeDefaultsAndValidation(t *testing.T) {
 		t.Fatal("expected validation error for invalid cross_lan_mode")
 	}
 
-	// HTTPS or Both mode without URL should fail validation
-	missingURL := &config.NodeConfig{CrossLANMode: config.CrossLANHTTPS}
+	// Nostr or Both mode without URL should fail validation
+	missingURL := &config.NodeConfig{CrossLANMode: config.CrossLANNostr}
 	if err := missingURL.Validate(); err == nil {
-		t.Fatal("expected validation error when cross_lan_mode is https but https_api.url is empty")
+		t.Fatal("expected validation error when cross_lan_mode is nostr but nostr_relay.url is empty")
 	}
 
 	bothValid := &config.NodeConfig{
 		CrossLANMode: config.CrossLANBoth,
-		HTTPSAPI:     &config.HTTPSAPIConfig{URL: "https://api.example.com"},
+		NostrRelay:   &config.NostrRelayConfig{URL: "wss://buzz.example.com"},
 	}
 	if err := bothValid.Validate(); err != nil {
 		t.Fatalf("expected valid 'both' mode config, got: %v", err)

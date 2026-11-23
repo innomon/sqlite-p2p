@@ -134,46 +134,61 @@ func NormalizeDHTAddr(addr string) string {
 }
 
 const (
-	HeaderPeerPublicKey  = internalp2p.HeaderPeerPublicKey
-	HeaderPeerSigningKey = internalp2p.HeaderPeerSigningKey
-	HeaderPeerTimestamp  = internalp2p.HeaderPeerTimestamp
-	HeaderPeerSignature  = internalp2p.HeaderPeerSignature
+	KindPeerAnnounce       = internalp2p.KindPeerAnnounce
+	KindEventDeletion      = internalp2p.KindEventDeletion
+	KindClientAuth         = internalp2p.KindClientAuth
+	NostrAddressablePrefix = internalp2p.NostrAddressablePrefix
 )
 
-// HTTPSPeerRecord aliases the peer discovery record returned by the HTTPS Registry API.
-type HTTPSPeerRecord = internalp2p.HTTPSPeerRecord
+// CrossLANDiscoveryClient aliases the pluggable cross-LAN peer discovery client interface.
+type CrossLANDiscoveryClient = internalp2p.CrossLANDiscoveryClient
 
-// HTTPSAnnounceRequest aliases the announce request payload for the HTTPS Registry API.
-type HTTPSAnnounceRequest = internalp2p.HTTPSAnnounceRequest
+// NostrEvent aliases a NIP-01 Nostr event.
+type NostrEvent = internalp2p.NostrEvent
 
-// HTTPSAnnounceResponse aliases the announce response payload for the HTTPS Registry API.
-type HTTPSAnnounceResponse = internalp2p.HTTPSAnnounceResponse
+// NostrFilter aliases a NIP-01 subscription filter.
+type NostrFilter = internalp2p.NostrFilter
 
-// HTTPSPeersResponse aliases the peer lookup response payload for the HTTPS Registry API.
-type HTTPSPeersResponse = internalp2p.HTTPSPeersResponse
+// NostrAnnounceContent aliases the JSON content payload inside Kind 30078 peer announce events.
+type NostrAnnounceContent = internalp2p.NostrAnnounceContent
 
-// HTTPSHealthResponse aliases the health check response payload for the HTTPS Registry API.
-type HTTPSHealthResponse = internalp2p.HTTPSHealthResponse
+// NostrPeerRecord aliases a verified peer discovery record from a Nostr relay.
+type NostrPeerRecord = internalp2p.NostrPeerRecord
 
-// HTTPSRegistryOptions aliases the configuration options for HTTPSRegistryClient.
-type HTTPSRegistryOptions = internalp2p.HTTPSRegistryOptions
+// NostrDiscoveryOptions aliases configuration options for NostrDiscoveryClient.
+type NostrDiscoveryOptions = internalp2p.NostrDiscoveryOptions
 
-// HTTPSRegistryClient aliases the stateless HTTPS discovery registry client.
-type HTTPSRegistryClient = internalp2p.HTTPSRegistryClient
+// NostrDiscoveryClient aliases the Nostr wss:// peer discovery client.
+type NostrDiscoveryClient = internalp2p.NostrDiscoveryClient
 
-// NewHTTPSRegistryClient creates a new HTTPSRegistryClient instance.
-func NewHTTPSRegistryClient(opts HTTPSRegistryOptions) (*HTTPSRegistryClient, error) {
-	return internalp2p.NewHTTPSRegistryClient(opts)
+// NewNostrDiscoveryClient creates a new NostrDiscoveryClient instance.
+func NewNostrDiscoveryClient(opts NostrDiscoveryOptions) (*NostrDiscoveryClient, error) {
+	return internalp2p.NewNostrDiscoveryClient(opts)
 }
 
-// SignHTTPSRequest attaches Bearer authentication and Ed25519 signature headers to an HTTP request.
-var SignHTTPSRequest = internalp2p.SignHTTPSRequest
+// DeriveNostrKeyPair deterministically derives a secp256k1 BIP-340 Nostr keypair from a secretstream.KeyPair.
+var DeriveNostrKeyPair = internalp2p.DeriveNostrKeyPair
 
-// VerifyHTTPSRequestSignature validates the timestamp skew and Ed25519 signature on an HTTP request.
-var VerifyHTTPSRequestSignature = internalp2p.VerifyHTTPSRequestSignature
+// SignNostrEvent signs a NostrEvent with BIP-340 Schnorr using the node's KeyPair.
+var SignNostrEvent = internalp2p.SignNostrEvent
 
-// BuildCanonicalString constructs the canonical string signed for HTTPS discovery requests.
-var BuildCanonicalString = internalp2p.BuildCanonicalString
+// VerifyNostrEvent validates a NostrEvent's NIP-01 ID, BIP-340 Schnorr signature, and NIP-40 expiration.
+var VerifyNostrEvent = internalp2p.VerifyNostrEvent
+
+// BuildAnnounceEvent constructs and signs a Kind 30078 peer announcement NostrEvent.
+var BuildAnnounceEvent = internalp2p.BuildAnnounceEvent
+
+// ParseAnnounceEvent validates a Kind 30078 NostrEvent and extracts its NostrPeerRecord.
+var ParseAnnounceEvent = internalp2p.ParseAnnounceEvent
+
+// BuildUnannounceEvent constructs and signs a Kind 5 NIP-09 deletion NostrEvent.
+var BuildUnannounceEvent = internalp2p.BuildUnannounceEvent
+
+// BuildAuthEvent constructs and signs a Kind 22242 NIP-42 authentication NostrEvent.
+var BuildAuthEvent = internalp2p.BuildAuthEvent
+
+// NormalizeRelayWSURL normalizes an https/http/wss/ws URL into a WebSocket URL.
+var NormalizeRelayWSURL = internalp2p.NormalizeRelayWSURL
 
 // VectorMatch aliases a K-NN vector similarity search result.
 type VectorMatch = store.VectorMatch

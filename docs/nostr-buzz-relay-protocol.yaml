@@ -1,0 +1,276 @@
+asyncapi: 3.0.0
+info:
+  title: SQLite-P2P Buzz Nostr Relay Cross-LAN Swarm Discovery Protocol
+  version: 1.0.0
+  description: |
+    Formal AsyncAPI 3.0 & Nostr Protocol Specification (NIP-01, NIP-09, NIP-11, NIP-33, NIP-40, NIP-42)
+    for the custom domain **Buzz Nostr Relay** (`wss://`) over HTTPS.
+    `sqlite-p2p` nodes behind separate LANs or corporate firewalls announce their routable Hyperswarm endpoints
+    and discover authorized peers in real time per 32-byte swarm topic (64-character hex string) using
+    BIP-340 `secp256k1` Schnorr-signed Nostr events with dual `ed25519` Swarm identity binding.
+
+servers:
+  buzzProduction:
+    host: buzz.example.com
+    protocol: wss
+    description: Production Buzz Nostr Relay over TLS (WSS / Port 443)
+  buzzLocal:
+    host: localhost:7777
+    protocol: ws
+    description: Local development / test Buzz Nostr Relay instance
+
+channels:
+  nostrRelayStream:
+    address: /
+    description: |
+      Bidirectional NIP-01 WebSocket stream upgraded from HTTPS (`GET /` with `Upgrade: websocket`).
+      When `Accept: application/nostr+json` is sent over standard HTTPS `GET /`, the server returns the
+      NIP-11 Relay Information Document.
+    messages:
+      clientEvent:
+        $ref: "#/components/messages/ClientEventMessage"
+      clientReq:
+        $ref: "#/components/messages/ClientReqMessage"
+      clientClose:
+        $ref: "#/components/messages/ClientCloseMessage"
+      clientAuth:
+        $ref: "#/components/messages/ClientAuthMessage"
+      relayEvent:
+        $ref: "#/components/messages/RelayEventMessage"
+      relayOK:
+        $ref: "#/components/messages/RelayOKMessage"
+      relayEOSE:
+        $ref: "#/components/messages/RelayEOSEMessage"
+      relayAuthChallenge:
+        $ref: "#/components/messages/RelayAuthChallengeMessage"
+      relayClosed:
+        $ref: "#/components/messages/RelayClosedMessage"
+      relayNotice:
+        $ref: "#/components/messages/RelayNoticeMessage"
+
+components:
+  messages:
+    ClientEventMessage:
+      summary: Publish a signed Nostr event (`["EVENT", <NostrEvent>]`)
+      description: |
+        Used by `sqlite-p2p` to publish:
+        - `kind: 30078` (NIP-33 Parameterized Replaceable Peer Announcement with NIP-40 `expiration` tag)
+        - `kind: 5` (NIP-09 Unannounce / Event Deletion on `Engine.Close()`)
+      payload:
+        $ref: "#/components/schemas/NostrEvent"
+
+    ClientReqMessage:
+      summary: Subscribe to active topic peers (`["REQ", <sub_id>, <NostrFilter>]`)
+      description: |
+        Queries stored non-expired `kind: 30078` events matching `#t: ["<64-char-topic-hex>"]` and streams
+        real-time updates as new peers announce on the topic.
+      payload:
+        $ref: "#/components/schemas/NostrFilter"
+
+    ClientCloseMessage:
+      summary: Close an active subscription (`["CLOSE", <sub_id>]`)
+      payload:
+        type: array
+        prefixItems:
+          - type: string
+            const: CLOSE
+          - type: string
+            description: Subscription identifier
+
+    ClientAuthMessage:
+      summary: Authenticate client via NIP-42 (`["AUTH", <Kind22242NostrEvent>]`)
+      description: |
+        Responds to a relay `["AUTH", "<challenge>"]` message with a signed `kind: 22242` event containing
+        `["relay", "<wss-url>"]` and `["challenge", "<challenge>"]` tags.
+      payload:
+        $ref: "#/components/schemas/NostrEvent"
+
+    RelayEventMessage:
+      summary: Deliver matching event to subscriber (`["EVENT", <sub_id>, <NostrEvent>]`)
+      payload:
+        $ref: "#/components/schemas/NostrEvent"
+
+    RelayOKMessage:
+      summary: Acknowledge event publication (`["OK", <event_id>, <accepted_bool>, <message>]`)
+      payload:
+        type: array
+        prefixItems:
+          - type: string
+            const: OK
+          - type: string
+            pattern: "^[0-9a-f]{64}$"
+          - type: boolean
+          - type: string
+
+    RelayEOSEMessage:
+      summary: End of Stored Events marker (`["EOSE", <sub_id>]`)
+      payload:
+        type: array
+        prefixItems:
+          - type: string
+            const: EOSE
+          - type: string
+
+    RelayAuthChallengeMessage:
+      summary: NIP-42 Authentication Challenge (`["AUTH", <challenge_string>]`)
+      payload:
+        type: array
+        prefixItems:
+          - type: string
+            const: AUTH
+          - type: string
+
+    RelayClosedMessage:
+      summary: Subscription terminated by relay (`["CLOSED", <sub_id>, <reason>]`)
+      payload:
+        type: array
+        prefixItems:
+          - type: string
+            const: CLOSED
+          - type: string
+          - type: string
+
+    RelayNoticeMessage:
+      summary: Human-readable diagnostic notice (`["NOTICE", <message>]`)
+      payload:
+        type: array
+        prefixItems:
+          - type: string
+            const: NOTICE
+          - type: string
+
+  schemas:
+    NostrEvent:
+      type: object
+      required:
+        - id
+        - pubkey
+        - created_at
+        - kind
+        - tags
+        - content
+        - sig
+      properties:
+        id:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+          description: |
+            32-byte lowercase hex SHA-256 of the canonical NIP-01 JSON array:
+            `[0, pubkey, created_at, kind, tags, content]`
+        pubkey:
+          type: string
+          pattern: "^[0-9a-f]{64}$"
+          description: |
+            32-byte lowercase hex x-only BIP-340 `secp256k1` public key deterministically derived from
+            `sha256("sqlite-p2p:nostr:v1:" || secretstream.KeyPair.Private[:])`.
+        created_at:
+          type: integer
+          format: int64
+          description: UTC Unix timestamp in seconds when the event was created.
+        kind:
+          type: integer
+          enum: [5, 22242, 30078]
+          description: |
+            - `30078`: NIP-33 Parameterized Replaceable Peer Announcement
+            - `5`: NIP-09 Peer Unannouncement (Deletion)
+            - `22242`: NIP-42 Client Authentication
+        tags:
+          type: array
+          items:
+            type: array
+            items:
+              type: string
+          description: |
+            Required tags for `kind: 30078`:
+            - `["d", "sqlite-p2p:<64-char-topic-hex>"]` (NIP-33 addressable key)
+            - `["t", "<64-char-topic-hex>"]` (indexed swarm topic key)
+            - `["p", "<64-char-peer-pk-hex>"]` (32-byte Noise/Swarm public key)
+            - `["expiration", "<unix-epoch-sec>"]` (NIP-40 TTL expiration timestamp)
+        content:
+          type: string
+          description: |
+            For `kind: 30078`, JSON string conforming to `NostrAnnounceContent`.
+        sig:
+          type: string
+          pattern: "^[0-9a-f]{128}$"
+          description: 64-byte lowercase hex BIP-340 Schnorr signature over the 32-byte `id` hash.
+
+    NostrAnnounceContent:
+      type: object
+      required:
+        - peer_pk
+        - signing_pk
+        - peer_sig
+        - endpoints
+      properties:
+        peer_pk:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+          description: 64-character hex 32-byte Swarm/Noise public key (`secretstream.KeyPair.Public`).
+        signing_pk:
+          type: string
+          pattern: "^[0-9a-fA-F]{64}$"
+          description: 64-character hex 32-byte Ed25519 public key derived from the node's private seed.
+        peer_sig:
+          type: string
+          pattern: "^[0-9a-fA-F]{128}$"
+          description: |
+            128-character hex 64-byte Ed25519 signature over the canonical binding string:
+            `"sqlite-p2p:peer-binding:v1\n" + nostr_pubkey + "\n" + topic_hex + "\n" + peer_pk + "\n" + strings.Join(endpoints, ",") + "\n" + created_at`
+        node_id:
+          type: string
+          maxLength: 128
+          example: crm-node-mumbai-01
+        endpoints:
+          type: array
+          minItems: 1
+          maxItems: 16
+          items:
+            type: string
+            example: "203.0.113.10:49737"
+        ttl_sec:
+          type: integer
+          minimum: 15
+          maximum: 3600
+          default: 60
+        policy_mode:
+          type: string
+          enum: [all, whitelist, blacklist]
+          default: all
+
+    NostrFilter:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+        authors:
+          type: array
+          items:
+            type: string
+        kinds:
+          type: array
+          items:
+            type: integer
+          example: [30078]
+        "#t":
+          type: array
+          items:
+            type: string
+          description: 64-character hex swarm topic filter.
+        "#d":
+          type: array
+          items:
+            type: string
+          description: NIP-33 addressable tag filter (`sqlite-p2p:<topic_hex>`).
+        since:
+          type: integer
+          format: int64
+        until:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+          default: 100
+          maximum: 500

@@ -15,7 +15,7 @@
 - **Local Pure Go Pear Engine**: Referenced from `$PROJECT_ROOT/go-pear`.
   - **Hypercore**: Append-only cryptographic data feeds with Merkle tree verification.
   - **Hyperswarm & HyperDHT**: Distributed peer discovery, holepunching, and P2P connection multiplexing over 32-byte swarm topics.
-  - **Configurable Cross-LAN Discovery & Secure HTTPS Swarm Registry**: Always-on intra-LAN UDP broadcast beacon discovery (`DefaultBeaconPort = 49736`) paired with configurable cross-LAN discovery (`cross_lan_mode`: `dht`, `https`, `both`, `none`) supporting both HyperDHT seed nodes (`cmd/dht-seed`) and a stateless Secure HTTPS Peer Discovery Registry API authenticated with Bearer tokens and Ed25519 request signatures (`X-Peer-Public-Key`, `X-Peer-Timestamp`, `X-Peer-Signature`).
+  - **Configurable Cross-LAN Discovery & Buzz Nostr Relay (`wss://`)**: Always-on intra-LAN UDP broadcast beacon discovery (`DefaultBeaconPort = 49736`) paired with a pluggable `CrossLANDiscoveryClient` interface and configurable cross-LAN discovery (`cross_lan_mode`: `dht`, `nostr`, `both`, `none`) supporting both HyperDHT seed nodes (`cmd/dht-seed`) and a Nostr `wss://` Relay over HTTPS (NIP-01, NIP-09, NIP-33 `kind: 30078`, NIP-40 expiration, NIP-42 `AUTH`) with BIP-340 `secp256k1` Schnorr signatures and `ed25519` Swarm identity binding.
   - **Autobase**: Multi-writer consensus, vector clock tracking, and causal linearization of peer changeset streams.
   - **Replication Gating & Access Control (`go-pear/pkg/policy`)**: Thread-safe dynamic peer authorization engine supporting `all`, `whitelist`, and `blacklist` modes with real-time peer eviction and JSON configuration file persistence.
 

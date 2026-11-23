@@ -16,7 +16,8 @@ This guide provides instructions for AI coding agents and autonomous developer h
 
 - **Local SQLite Store**: Powered by `modernc.org/sqlite` with WAL mode and `busy_timeout` enabled.
 - **Universal Multi-Table Auto-Discovery & Trigger CDC**: Automatically discovers all user tables (`crm_store`, `ecom_store`, and arbitrary relational schemas), attaches `AFTER INSERT/UPDATE/DELETE` triggers into `_p2p_cdc_outbox`, guards remote changeset application via `_p2p_sync_state.applying_remote = 1`, and replicates `OpDDL` + row mutations across peers.
-- **Peer-to-Peer Replication**: Powered by pure Go Holepunch/Pear protocols (Hypercore append-only feeds, Autobase changeset linearization, table-scoped LWW reconciliation, and Hyperswarm DHT discovery).
+- **Peer-to-Peer Replication & Hybrid Discovery**: Powered by pure Go Holepunch/Pear protocols (Hypercore append-only feeds, Autobase changeset linearization, table-scoped LWW reconciliation, always-on intra-LAN UDP beacon discovery, and configurable `cross_lan_mode` supporting HyperDHT `dht` and Buzz Nostr Relay `wss://` `nostr` discovery via `CrossLANDiscoveryClient`).
+- **Pure Go Vector Search (`pkg/vect`)**: Built-in SQLite scalar functions (`vec_cosine_similarity`, `vec_cosine_distance`, `vec_l2_distance`, `vec_length`, `vec_pack_f32`) and `Repository` K-NN helpers (`PutVector`, `GetVector`, `SearchSimilar`).
 - **Cryptographic Shredding**: Per-record AES-256-GCM encryption with key purging for mathematical right-to-be-forgotten on append-only feeds.
 - **Clean Public Embedding API**: Exported via `sqlite-p2p/pkg/p2p`.
 
@@ -93,5 +94,8 @@ func main() {
 
 ## 3. Architecture & Reference
 
-- **[ARCHITECTURE.md](/ARCHITECTURE.md)**: Deep dive into the CQRS replication pipeline, encryption at rest, and DHT topic discovery.
+- **[ARCHITECTURE.md](/ARCHITECTURE.md)**: Deep dive into the CQRS replication pipeline, encryption at rest, DHT topic discovery, and Nostr `wss://` cross-LAN rendezvous.
+- **[docs/nostr-buzz-agent-spec.md](/docs/nostr-buzz-agent-spec.md)**: Coding Agent specification for building the standalone custom domain **Buzz Nostr Relay** server (`NIP-01`, `NIP-09`, `NIP-11`, `NIP-33`, `NIP-40`, `NIP-42`).
+- **[docs/nostr-buzz-relay-protocol.yaml](/docs/nostr-buzz-relay-protocol.yaml)**: AsyncAPI 3.0 & Nostr event/filter schema specification for the Buzz Nostr Relay.
+- **[docs/sqlite_vector_search_extension_specification.md](/docs/sqlite_vector_search_extension_specification.md)**: Specification for the pure Go `pkg/vect` SQLite vector search extension.
 - **[README.md](/README.md)**: Build instructions, testing guidelines, and quality gates.

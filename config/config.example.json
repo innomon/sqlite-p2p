@@ -2,10 +2,20 @@
   "node_id": "unique-node-identifier",
   "swarm_topic": "sqlite-p2p-e2e-cluster",
   "swarm_port": 0,
+  "cross_lan_mode": "dht",
   "bootstrap": [
     "192.168.1.100:43219"
   ],
   "peer_addrs": [],
+  "nostr_relay": {
+    "url": "wss://buzz.example.com",
+    "relays": [],
+    "api_key": "",
+    "announce_interval_sec": 15,
+    "timeout_sec": 10,
+    "advertise_addr": "",
+    "tls_skip_verify": false
+  },
   "db_path": "data/peer_node.db",
   "enable_wal": true,
   "enable_crypto": false,

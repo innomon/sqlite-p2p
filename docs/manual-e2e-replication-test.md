@@ -79,7 +79,25 @@ To solve peer discovery seamlessly across both local and internet environments w
   "bootstrap": ["dht.yourdomain.com:49737"]
   ```
 
-#### Solution C: Dart (`dap`) Host IP Resolution & Unspecified Address Fix
+#### Solution C: Cross-LAN Discovery via Custom Domain Buzz Nostr Relay (`wss://` over HTTPS)
+
+- In networks where UDP/HyperDHT traffic across LANs or corporate firewalls is blocked, set `"cross_lan_mode": "nostr"` (or `"both"`) and configure `"nostr_relay"` to point at your **Buzz Nostr Relay** (`wss://`):
+
+  ```json
+  {
+    "cross_lan_mode": "nostr",
+    "nostr_relay": {
+      "url": "wss://buzz.yourdomain.com",
+      "api_key": "optional-bearer-token",
+      "announce_interval_sec": 15,
+      "advertise_addr": "203.0.113.10:0"
+    }
+  }
+  ```
+
+- Nodes maintain a live NIP-01 WebSocket subscription (`kinds: [30078]`, `#t: ["<topic_hex>"]`), publish BIP-340 Schnorr + Ed25519-bound replaceable presence events (NIP-33 + NIP-40), and immediately establish direct Noise TCP connections (`SwarmManager.ConnectDirect`) when remote peers announce. Intra-LAN UDP broadcast discovery on port `49736` remains active simultaneously. See [/docs/nostr-buzz-agent-spec.md](/docs/nostr-buzz-agent-spec.md) for the Buzz Relay implementation blueprint.
+
+#### Solution D: Dart (`dap`) Host IP Resolution & Unspecified Address Fix
 
 - In `$PROJECT_ROOT/dap/pear`:
   - `HyperDhtNode.resolveRoutableAddress()` now actively inspects non-loopback host network interfaces (`NetworkInterface.list()`).
